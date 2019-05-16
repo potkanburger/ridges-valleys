@@ -1,13 +1,15 @@
 import cv2 as cv
 import numpy as np
 import math
-import matplotlib.pyplot as plot
+#import matplotlib.pyplot as plot
 
 def getImgGrayscale(url):
     return cv.imread(url, 0)
 
+
 def sqr(val):
     return pow(val, 2)
+
 
 def gradient(src):
     width = np.size(src, 0)
@@ -48,26 +50,29 @@ def sqr_magnitude(gx, gy):
 
     return res
 
+
 def almostEqual(v1, v2):
-    if(abs(v2-v1) <= 0.00000000001):
+    if abs(v2 - v1) <= 0.00000000001:
         return True
     return False
+
 
 def areLinearlyDependant(val1X, val2X, val1Y, val2Y):
 
     if val2X == 0 or val2Y == 0:
         if val1X == 0 and val1Y == 0 and val2X == 0 and val2Y == 0:
-            return 1
+            return 0
     elif almostEqual(-val1X / val2X, -val1Y/val2Y):
-        return 2
+        if includeNulLambda or not(almostEqual(-val1X / val2X, 0)):
+            return 2
 
     if val1X == 0 or val1Y == 0:
         if val2X == 0 and val2Y == 0 and val1X == 0 and val1Y == 0:
             return 1
-    elif almostEqual(-val2X / val1X, -val2Y/ val1Y):
-        return 2
-
-    return 0
+    elif almostEqual(-val2X / val1X, -val2Y / val1Y):
+        if includeNulLambda or not (almostEqual(-val2X / val1X, 0)):
+            return 2
+    return -1
 
 
 def getJacobi(f, g):
@@ -75,28 +80,39 @@ def getJacobi(f, g):
     height = np.size(f, 1)
     res = list()
     resZeroG = list()
+    resZeroSGM = list()
+
     fx, fy = gradient(f)
     gx, gy = gradient(g)
     for x in range(1, width - 2):
         for y in range(1, height - 2):
-            linearity = areLinearlyDependant(fx[x, y],gx[x, y], fy[x, y], gy[x, y])
+            linearity = areLinearlyDependant(fx[x, y], gx[x, y], fy[x, y], gy[x, y])
             if linearity == 2:
                 res.append([x, y])
 
             if linearity == 1:
                 resZeroG.append([x, y])
 
-    return res, resZeroG
+            if linearity == 0:
+                resZeroSGM.append([x, y])
 
-def pointsOnImg(src, pointlist, pointlist2):
+    return res, resZeroG, resZeroSGM
+
+
+def pointsOnImg(src, pointlist, pointlistG, pointlistSGM):
     res = src.copy()
     for pt in pointlist:
         cv.circle(res, (pt[1], pt[0]), 2, (0,0,255),-1)
 
-    for pt in pointlist2:
-        cv.circle(res, (pt[1], pt[0]), 2, (0, 255, 0), -1)
+    if enableZeroG:
+        for pt in pointlistG:
+            cv.circle(res, (pt[1], pt[0]), 2, (0, 255, 0), -1)
+
+        for pt in pointlistSGM:
+            cv.circle(res, (pt[1], pt[0]), 2, (255, 0, 0), -1)
 
     return res
+
 
 def computeCritical(listImg):
     for imgPath in listImg:
@@ -108,20 +124,27 @@ def computeCritical(listImg):
 
         gfunc = sqr_magnitude(iGx, iGy)
 
-        jacoList, jacoZeroG = getJacobi(img, gfunc)
-        jMars = pointsOnImg(orig, jacoList, jacoZeroG)
+        jacoList, jacoZeroG, jacoZeroSGM = getJacobi(img, gfunc)
+        jMars = pointsOnImg(orig, jacoList, jacoZeroG, jacoZeroSGM)
         cv.imwrite(path+"cmp_criticals_"+imgPath, jMars)
         #cv.imwrite(path+"gray_"+imgPath, img)
         print(imgPath+" complete !")
 
+
 def main():
     global path
-    path = "/home/sebastien/Documents/MUNI/IMGS/RV-Graph/"
+    global enableZeroG
+    global includeNulLambda
+    #path = "/home/sebastien/Documents/MUNI/IMGS/RV-Graph/"
+    path = "./IMGS/"
 
-    imglist = ["gray_mars1.jpg"]
-    imglist.append("gray_binary_fingerprint.jpg")
-    imglist.append("gray_earth.jpg")
-    imglist.append("gray_brain.jpg")
+    enableZeroG = False;
+    includeNulLambda = False;
+
+    imglist = ["generated.jpg"]
+    #imglist.append("gray_binary_fingerprint.jpg")
+    #imglist.append("gray_earth.jpg")
+    #imglist.append("gray_brain.jpg")
 
     computeCritical(imglist)
     #cv.waitKey(0)
