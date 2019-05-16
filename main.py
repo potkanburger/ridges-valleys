@@ -139,7 +139,7 @@ def main():
     path = "./IMGS/"
 
     enableZeroG = False;
-    includeNulLambda = False;
+    includeNulLambda = True;
 
     imglist = ["generated.jpg"]
     #imglist.append("gray_binary_fingerprint.jpg")
