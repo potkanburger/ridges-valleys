@@ -7,7 +7,7 @@ def createImg(width, height):
     return np.zeros((height, width, 1), dtype="double")
 
 
-def main():
+def _main():
 
     sizeDef = 300
     img = createImg(sizeDef, sizeDef)
@@ -28,4 +28,4 @@ def main():
     cv.imwrite("./IMGS/generated.jpg", img)
 
 
-main()
+_main()

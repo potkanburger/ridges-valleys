@@ -11,6 +11,34 @@ def sqr(val):
     return pow(val, 2)
 
 
+def addNeumannBorder(img, size):
+    return cv.copyMakeBorder(img, size, size, size, size, cv.BORDER_REPLICATE)
+
+
+def hessian(img):
+    width = np.size(img, 0)
+    height = np.size(img, 1)
+    hessianM = {}
+    for x in range(1, width - 2):
+        for y in range(1, height - 2):
+            d2fdx = img[x+1, y] - 2*img[x,y] + img[x-1,y]
+            d2fdy = img[x, y+1] - 2*img[x,y] + img[x,y-1]
+            d2fdxdy = (img[x+1, y+1] + img[x-1, y-1] - img[x+1, y-1] - img[x-1, y+1])/4.0
+            value = np.zeros((2, 2))
+            value[0, 0] = d2fdx
+            value[0, 1] = d2fdxdy
+            value[1, 0] = d2fdxdy
+            value[1, 1] = d2fdy
+            hessianM[(x, y)] = value
+
+    return hessianM
+
+
+def getEigenValues(mat2x2):
+    return np.linalg.eigvals(mat2x2)
+
+
+
 def gradient(src):
     width = np.size(src, 0)
     height = np.size(src, 1)
@@ -70,7 +98,7 @@ def areLinearlyDependant(val1X, val2X, val1Y, val2Y):
         if val2X == 0 and val2Y == 0 and val1X == 0 and val1Y == 0:
             return 1
     elif almostEqual(-val2X / val1X, -val2Y / val1Y):
-        if includeNulLambda or not (almostEqual(-val2X / val1X, 0)):
+        if includeNulLambda or not(almostEqual(-val2X / val1X, 0)):
             return 2
     return -1
 
@@ -119,8 +147,9 @@ def computeCritical(listImg):
         print("Starting computation for "+imgPath)
         img = getImgGrayscale(path+imgPath)
         orig = cv.imread(path+imgPath)
+        img = addNeumannBorder(img, 1)
         iGx, iGy = gradient(img)
-        iGm = magnitude(iGx, iGy)
+        #iGm = magnitude(iGx, iGy)
 
         gfunc = sqr_magnitude(iGx, iGy)
 
@@ -131,7 +160,7 @@ def computeCritical(listImg):
         print(imgPath+" complete !")
 
 
-def main():
+def _main():
     global path
     global enableZeroG
     global includeNulLambda
@@ -152,4 +181,4 @@ def main():
 
 
 
-main()
+_main()
