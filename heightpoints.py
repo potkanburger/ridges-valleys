@@ -35,9 +35,11 @@ def computeHeightPoints(listImg):
 def _main():
     global path
     path = "./IMGS/"
-    imglist = ["generated.jpg"]
+    imglist = []
+    #imglist.append("generated.jpg")
+    imglist.append("gray_brain.jpg")
     # imglist.append("gray_binary_fingerprint.jpg")
-    imglist.append("gray_earth.jpg")
+    # imglist.append("gray_earth.jpg")
     # imglist.append("gray_brain.jpg")
     computeHeightPoints(imglist)
 
