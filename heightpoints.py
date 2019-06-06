@@ -37,8 +37,10 @@ def _main():
     global path
     path = "./IMGS/"
     imglist = []
-    imglist.append("generated.jpg")
-    imglist.append("gray_brain.jpg")
+    imglist.append("ellipses_generated_rotated90.jpg")
+    #imglist.append("ellipses_generated.jpg")
+    #imglist.append("generated.jpg")
+    #imglist.append("gray_brain.jpg")
     # imglist.append("gray_binary_fingerprint.jpg")
     # imglist.append("gray_earth.jpg")
     # imglist.append("gray_brain.jpg")

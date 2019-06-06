@@ -18,14 +18,14 @@ def _main():
         for y in range(sizeDef):
             distance = sizeDef
             for pt in maxPoints:
-                tmp_dst = math.sqrt(sqr(x - pt[0]) + sqr(y - pt[1]))
+                tmp_dst = math.sqrt(sqr(x - pt[0]) + sqr((y - pt[1])/2))
                 if tmp_dst < distance:
                     distance = tmp_dst
 
             value = 255 - distance
             img[y, x] = max(0.0 , value)
 
-    cv.imwrite("./IMGS/generated.jpg", img)
+    cv.imwrite("./IMGS/ellipses_generated.jpg", img)
 
 
 _main()
