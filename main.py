@@ -10,9 +10,13 @@ def getImgGrayscale(url):
 def sqr(val):
     return pow(val, 2)
 
+def xor(bool1, bool2):
+    return bool1 ^ bool2
+
 
 def addNeumannBorder(img, size):
     return cv.copyMakeBorder(img, size, size, size, size, cv.BORDER_REPLICATE)
+
 
 
 def hessian(img):
@@ -101,6 +105,31 @@ def areLinearlyDependant(val1X, val2X, val1Y, val2Y):
         if includeNulLambda or not(almostEqual(-val2X / val1X, 0)):
             return 2
     return -1
+
+
+def getABCvalues(hessian):
+    a = hessian[0, 0]
+    b = hessian[0, 1]
+    c = hessian[1, 1]
+
+    return a, b, c
+
+def isLambdaLinear(hessian, iGx, iGy):
+    a, b, c = getABCvalues(hessian)
+    if not(almostEqual(iGx, 0) and almostEqual(iGy, 0)):
+        lambda1 = (a*iGx + b*iGy)/iGx
+        lambda2 = (b*iGx + c*iGy)/iGy
+
+        if almostEqual(lambda1, lambda2):
+            return True
+
+    elif (almostEqual(iGx, 0) and not(almostEqual(iGy, 0))) or (almostEqual(iGy, 0) and not(almostEqual(iGx, 0))):
+        return almostEqual(b*(iGx+iGy), 0)
+
+    else:
+        return True
+
+    return False
 
 
 def getJacobi(f, g):
