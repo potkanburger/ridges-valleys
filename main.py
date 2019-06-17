@@ -53,8 +53,8 @@ def gradient(src):
 
     for x in range(1, width-2):
         for y in range(1, height-2):
-            gx[x, y] = (int(src[x+1, y]) - int(src[x-1, y]))/2.0
-            gy[x, y] = (int(src[x, y+1]) - int(src[x, y-1]))/2.0
+            gx[x, y] = (float(src[x+1, y]) - float(src[x-1, y]))/2.0
+            gy[x, y] = (float(src[x, y+1]) - float(src[x, y-1]))/2.0
 
     return gx, gy
 
