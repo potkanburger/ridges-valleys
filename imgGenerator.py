@@ -1,10 +1,7 @@
 import cv2 as cv
 import numpy as np
 import math
-from main import sqr
-
-def createImg(width, height):
-    return np.zeros((height, width, 1), dtype="double")
+from main import *
 
 
 def _main():
@@ -22,8 +19,8 @@ def _main():
                 if tmp_dst < distance:
                     distance = tmp_dst
 
-            value = 255 - distance
-            img[y, x] = max(0.0 , value)
+            value = float(255 - distance)
+            img[y, x] = max(float(0.0), value)
 
     cv.imwrite("./IMGS/ellipses_generated.jpg", img)
 

@@ -4,8 +4,10 @@ import math
 #import matplotlib.pyplot as plot
 
 def getImgGrayscale(url):
-    return cv.imread(url, 0)
+    return cv.imread(url, 0).astype(np.float)
 
+def createImg(width, height):
+    return np.zeros((height, width, 1), dtype="float")
 
 def sqr(val):
     return pow(val, 2)
@@ -47,14 +49,17 @@ def gradient(src):
     width = np.size(src, 0)
     height = np.size(src, 1)
     #gx = np.zeros((width, height))
-    gx = src.copy()
-    gy = src.copy()
+    gx = createImg(height, width)
+    gy = createImg(height, width)
     #gy = np.zeros((width, height))
 
     for x in range(1, width-2):
         for y in range(1, height-2):
             gx[x, y] = (float(src[x+1, y]) - float(src[x-1, y]))/2.0
             gy[x, y] = (float(src[x, y+1]) - float(src[x, y-1]))/2.0
+            #if abs(gx[x,y]) <= 0.5 or abs(gy[x,y]) <= 0.5:
+                #print(str(src[x+1, y]) + "-" + str(src[x-1, y]))
+                #print(str(src[x, y+1]) + "-" + str(src[x, y-1]))
 
     return gx, gy
 
