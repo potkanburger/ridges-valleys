@@ -19,7 +19,10 @@ def xor(bool1, bool2):
 def addNeumannBorder(img, size):
     return cv.copyMakeBorder(img, size, size, size, size, cv.BORDER_REPLICATE)
 
-
+def scale0to250(img):
+    with np.nditer(img, op_flags=['readwrite']) as it:
+        for x in it:
+            x[...] = x+125.0
 
 def hessian(img):
     width = np.size(img, 0)

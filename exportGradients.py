@@ -15,16 +15,21 @@ def createGradients(listImg):
         height = np.size(img, 1)
 
         iGx, iGy = gradient(img)
+
+        scale0to250(iGx)
+        scale0to250(iGy)
+
         cv.imwrite(path + "x_gradient_" + imgPath, iGx)
         cv.imwrite(path + "y_gradient_" + imgPath, iGy)
         cv.imwrite(path + "validator_" + imgPath, img)
-        f = open(path + "x_gradient_" + imgPath +".txt", "w")
 
-        for x in range(1, width - 2):
-            for y in range(1, height - 2):
-                f.write(str(iGx[x, y]))
-            f.write("\n")
-        f.close()
+        #testgradsaveOk = getImgGrayscale(path + "x_gradient_" + imgPath)
+
+        # for x in range(1, width - 2):
+        #     for y in range(1, height - 2):
+        #         if iGx[x,y] != testgradsaveOk[x,y]:
+        #             print(str(iGx[x,y])+ " != "+str(testgradsaveOk[x,y]))
+
         print(imgPath + " complete !")
 
 def _main():
