@@ -39,8 +39,8 @@ def _main():
 
     imglist = []
     # imglist.append("circular.jpg")
-    imglist.append("smooth_lena.jpg")
-    #imglist.append("ellipses_generated.jpg")
+    #imglist.append("smooth_lena.jpg")
+    imglist.append("ellipses_generated.jpg")
     # imglist.append("mars1.jpg")
     # imglist.append("gray_binary_fingerprint.jpg")
     # imglist.append("gray_earth.jpg")

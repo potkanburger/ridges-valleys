@@ -12,14 +12,14 @@ def getHeightPointsList(img):
 
     hessianMatrix = hessian(img)
 
-    for x in range(1, width - 2):
-        for y in range(1, height - 2):
-            if not(almostEqual(iGx[x, y], 0) and almostEqual(iGy[x,y], 0)):
-                ev = getEigenValues(hessianMatrix[(x, y)])
+    for y in range(1, width - 2):
+        for x in range(1, height - 2):
+            if not(almostEqual(iGx[y, x], 0) and almostEqual(iGy[y,x], 0)):
+                ev = getEigenValues(hessianMatrix[(y, x)])
                 if not(almostEqual(ev[0], 0) or almostEqual(ev[1], 0) or almostEqual(ev[0], ev[1])):
                     print(ev)
-                    if isLambdaLinear(hessianMatrix[(x, y)], iGx[x, y], iGy[x,y]):
-                        resHeight.append((x, y))
+                    if isLambdaLinear(hessianMatrix[(y, x)], iGx[y, x], iGy[y,x]):
+                        resHeight.append((y, x))
     return resHeight
 
 def computeHeightPoints(listImg):
@@ -37,9 +37,9 @@ def _main():
     global path
     path = "./IMGS/"
     imglist = []
-    imglist.append("ellipses_generated_rotated90.jpg")
+    #imglist.append("ellipses_generated_rotated90.jpg")
     #imglist.append("ellipses_generated.jpg")
-    #imglist.append("generated.jpg")
+    imglist.append("generated.jpg")
     #imglist.append("gray_brain.jpg")
     # imglist.append("gray_binary_fingerprint.jpg")
     # imglist.append("gray_earth.jpg")
