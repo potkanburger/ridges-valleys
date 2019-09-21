@@ -1,10 +1,17 @@
+% parameters
+
 imgString = 'ellipses_generated';
 imgExtension = '.jpg';
-fullImgPath = strcat(imgString,imgExtension);
+gray = true;
 
+%program
+fullImgPath = strcat(imgString,imgExtension);
 ITEMP = imread(fullImgPath);
-I = ITEMP;
-% I = rgb2gray(ITEMP);
+if gray
+    I = ITEMP;
+else
+    I = rgb2gray(ITEMP);
+end
 
 [Gx,Gy] = imgradientxy(I, 'central');
 figure(1)
@@ -45,9 +52,9 @@ function plotPoints(img, pts)
 end
 
 function [gxx, gyy, gxy] = getSecondDerivatives(img)
-  [gx, gy] = gradient(double(img));
-  [gxx, gxy] = gradient(double(gx));
-  [gyx, gyy] = gradient(double(gy));
+  [gx, gy] = imgradientxy(double(img), 'central');
+  [gxx, gxy] = imgradientxy(double(gx), 'central');
+  [gyx, gyy] = imgradientxy(double(gy), 'central');
 end
 
 function mat = hessian(gxx, gyy, gxy, x, y)
@@ -58,16 +65,16 @@ function mat = hessian(gxx, gyy, gxy, x, y)
 end
 
 function [a,b,c] = getHessianABC(hessMat)
-    a = hessMat(1,1)
-    b = hessMat(1,2)
-    c = hessMat(2,2)
+    a = hessMat(1,1);
+    b = hessMat(1,2);
+    c = hessMat(2,2);
 end
 
 function isLin = areLambdaLinear(hessMat, gxVal, gyVal)
     [a,b,c] = getHessianABC(hessMat);
     if ~almostZero(gyVal) && ~almostZero(gxVal)
-        lambda1 = (a*gyVal + b*gxVal)/gyVal
-        lambda2 = (b*gyVal + c*gxVal)/gxVal
+        lambda1 = (a*gxVal + b*gyVal)/gxVal;
+        lambda2 = (b*gxVal + c*gyVal)/gyVal;
         
         if almostEqual(lambda1, lambda2)
             isLin = true;
@@ -88,12 +95,12 @@ function ptList = heightPoints(img)
     [xSize, ySize] = size(img);
     [iGx,iGy] = imgradientxy(img, 'central');
     vals = 0;
-    [iGxx, iGyy, iGxy] = getSecondDerivatives(img)
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     for x = 1:xSize
         for y = 1:ySize
             gxValue = iGx(x,y);
             gyValue = iGy(x,y);       
-            if almostZero(gxValue) || almostZero(gyValue)
+            if ~almostZero(gxValue) || ~almostZero(gyValue)
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
                 if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
