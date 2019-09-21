@@ -122,11 +122,11 @@ def getABCvalues(hessian):
 
     return a, b, c
 
-def isLambdaLinear(hessian, iGy, iGx):
+def isLambdaLinear(hessian, iGx, iGy):
     a, b, c = getABCvalues(hessian)
-    if not(almostEqual(iGy, 0)) and not(almostEqual(iGx, 0)):
-        lambda1 = (a*iGy + b*iGx)/iGy
-        lambda2 = (b*iGy + c*iGx)/iGx
+    if not(almostEqual(iGx, 0)) and not(almostEqual(iGy, 0)):
+        lambda1 = (a*iGx + b*iGy)/iGx
+        lambda2 = (b*iGx + c*iGy)/iGy
 
         if almostEqual(lambda1, lambda2):
             return True

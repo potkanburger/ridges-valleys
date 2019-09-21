@@ -14,7 +14,7 @@ def getHeightPointsList(img):
 
     for y in range(1, width - 2):
         for x in range(1, height - 2):
-            if not(almostEqual(iGx[y, x], 0) and almostEqual(iGy[y,x], 0)):
+            if not(almostEqual(iGx[y, x], 0)) or not(almostEqual(iGy[y,x], 0)):
                 ev = getEigenValues(hessianMatrix[(y, x)])
                 if not(almostEqual(ev[0], 0) or almostEqual(ev[1], 0) or almostEqual(ev[0], ev[1])):
                     print(ev)
