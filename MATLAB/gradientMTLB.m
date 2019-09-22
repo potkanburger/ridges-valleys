@@ -7,6 +7,7 @@ gray = true;
 %program
 fullImgPath = strcat(imgString,imgExtension);
 ITEMP = imread(fullImgPath);
+ITEMP = im2double(ITEMP);
 if gray
     I = ITEMP;
 else
