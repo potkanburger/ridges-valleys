@@ -36,7 +36,21 @@ hold on;
 plotPoints(I, mL);
 title('HeightPoints');
 saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'))
-close all
+hold off
+
+[Hx, Hy] = hessianXgradient(I);
+
+figure(4)
+imshow(I);
+hold on;
+plotPointsBig(I, mL);
+title('Gradient Vectors');
+quiver(Gx, Gy);
+quiver(Hx, Hy);
+
+saveas(gcf,strcat('vectors_',imgString,'_MATLAB.png'))
+hold off
+% close all
 
 function res = almostZero(val)
     res = abs(val) <= 0.00000000001;        
@@ -51,6 +65,13 @@ function plotPoints(img, pts)
     yValues = pts(2,:);
     plot(xValues, yValues, 'r+', 'LineWidth', 2, 'MarkerSize', 2);
 end
+
+function plotPointsBig(img, pts)
+    xValues = pts(1,:);
+    yValues = pts(2,:);
+    plot(xValues, yValues, 'ro', 'LineWidth', 4, 'MarkerSize', 4);
+end
+
 
 function [gxx, gyy, gxy] = getSecondDerivatives(img)
   [gx, gy] = imgradientxy(double(img), 'central');
@@ -69,6 +90,22 @@ function [a,b,c] = getHessianABC(hessMat)
     a = hessMat(1,1);
     b = hessMat(1,2);
     c = hessMat(2,2);
+end
+
+function [hessGradientX,hessGradientY] = hessianXgradient(img)
+    [xSize, ySize] = size(img);
+    [iGx,iGy] = imgradientxy(img, 'central');
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    hessGradientX = zeros(size(img),'like',img);
+    hessGradientY = zeros(size(img),'like',img);
+    for x = 1:xSize
+        for y = 1:ySize
+            localHessian = hessian(iGxx, iGyy, iGxy, x, y);
+            [a,b,c] = getHessianABC(localHessian);
+            hessGradientX(x, y) = a*iGx(x,y) + b*iGy(x,y);
+            hessGradientY(x, y) = b*iGx(x,y) + c*iGy(x,y);
+        end
+    end
 end
 
 function isLin = areLambdaLinear(hessMat, gxVal, gyVal)
