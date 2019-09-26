@@ -53,7 +53,7 @@ hold off
 % close all
 
 function res = almostZero(val)
-    res = abs(val) <= 0.00000000001;        
+    res = abs(val) <= 0.000000000001;   
 end
 
 function res = almostEqual(val1, val2)
@@ -108,6 +108,23 @@ function [hessGradientX,hessGradientY] = hessianXgradient(img)
     end
 end
 
+function isLin = pixelIsLinear(hessVal, gxValue, gyValue)
+    [a,b,c] = getHessianABC(hessVal);
+    hessGradientX = a*gxValue + b*gyValue;
+    hessGradientY = b*gxValue + c*gyValue;
+    
+    determinant = hessGradientX*gyValue - hessGradientY*gxValue;    
+    isLin = determinant == 0 && ~(almostZero(hessGradientX*gyValue) && almostZero(hessGradientY*gxValue));
+    
+    if isLin
+        hessGradientX
+        hessGradientY
+        gxValue
+        gyValue
+    end
+    
+end
+
 function isLin = areLambdaLinear(hessMat, gxVal, gyVal)
     [a,b,c] = getHessianABC(hessMat);
     if ~almostZero(gyVal) && ~almostZero(gxVal)
@@ -142,7 +159,7 @@ function ptList = heightPoints(img)
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
                 if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
-                    if areLambdaLinear(hessVal, gxValue, gyValue)
+                    if pixelIsLinear(hessVal, gxValue, gyValue)
                         ptList(1,vals+1) = x;
                         ptList(2,vals+1) = y;
                         vals = vals+1;
