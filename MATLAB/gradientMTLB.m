@@ -36,7 +36,7 @@ hold on;
 plotPoints(I, mL);
 title('HeightPoints');
 saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'))
-hold off
+hold off;
 
 [Hx, Hy] = hessianXgradient(I);
 
@@ -44,12 +44,32 @@ figure(4)
 imshow(I);
 hold on;
 plotPointsBig(I, mL);
-title('Gradient Vectors');
+title('HP with Gradient Vectors');
 quiver(Gx, Gy);
 quiver(Hx, Hy);
 
 saveas(gcf,strcat('vectors_',imgString,'_MATLAB.png'))
-hold off
+hold off;
+
+figure(5)
+imshow(I);
+hold on;
+amL = alternateheightPoints(I);
+
+plotPointsBig(I, amL);
+
+clGx = onlyPx(amL, Gx);
+clGy = onlyPx(amL, Gy);
+clHx = onlyPx(amL, Hx);
+clHy = onlyPx(amL, Hy);
+
+title('Alternate HP with Gradient Vectors');
+quiver(clGx, clGy);
+quiver(clHx, clHy);
+saveas(gcf,strcat('only_heightpoints_vectors_',imgString,'_MATLAB.png'))
+hold off;
+
+
 % close all
 
 function res = almostZero(val)
@@ -102,8 +122,8 @@ function [hessGradientX,hessGradientY] = hessianXgradient(img)
         for y = 1:ySize
             localHessian = hessian(iGxx, iGyy, iGxy, x, y);
             [a,b,c] = getHessianABC(localHessian);
-            hessGradientX(x, y) = a*iGx(x,y) + b*iGy(x,y);
-            hessGradientY(x, y) = b*iGx(x,y) + c*iGy(x,y);
+            hessGradientX(y, x) = a*iGx(y,x) + b*iGy(y,x);
+            hessGradientY(y, x) = b*iGx(y,x) + c*iGy(y,x);
         end
     end
 end
@@ -113,15 +133,19 @@ function isLin = pixelIsLinear(hessVal, gxValue, gyValue)
     hessGradientX = a*gxValue + b*gyValue;
     hessGradientY = b*gxValue + c*gyValue;
     
-    determinant = hessGradientX*gyValue - hessGradientY*gxValue;    
-    isLin = determinant == 0 && ~(almostZero(hessGradientX*gyValue) && almostZero(hessGradientY*gxValue));
+    determinant = hessGradientX*gyValue - hessGradientY*gxValue;
     
-    if isLin
-        hessGradientX
-        hessGradientY
-        gxValue
-        gyValue
+    if (almostZero(hessGradientX) && almostZero(hessGradientY)) || (almostZero(gxValue) && almostZero(gyValue))
+        isLin = False;
+    else
+        isLin = determinant == 0;
     end
+    %if isLin
+    %    hessGradientX
+    %    hessGradientY
+    %    gxValue
+    %   gyValue
+    %end
     
 end
 
@@ -146,6 +170,48 @@ function isLin = areLambdaLinear(hessMat, gxVal, gyVal)
     isLin = false;
 end
 
+
+function cleared = onlyPx(ptList, mat)
+    cleared = zeros(size(mat),'like',mat);
+    [xSize, ySize] = size(ptList);
+    [xSizeBis, ySizeBis] = size(mat);
+    
+    if ySize <= ySizeBis*xSizeBis
+        for j = 1:ySize
+            x = ptList(1,j);
+            y = ptList(2,j);
+            cleared(y,x) = mat(y,x);
+        end
+    end
+
+end
+
+function ptList = alternateheightPoints(img)
+    [Gx,Gy] = imgradientxy(img, 'central');
+    [Hx, Hy] = hessianXgradient(img);
+    [xSize, ySize] = size(img);
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    vals = 0;
+    for x = 1:xSize
+        for y = 1:ySize
+            determinant = Hx(y,x)*Gy(y,x) - Hy(y,x)*Gx(y,x);
+       
+            if(determinant == 0) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+                hessVal = hessian(iGxx, iGyy, iGxy, x, y);
+                eigVals = eig(hessVal);
+                
+                if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
+                    ptList(1,vals+1) = x;
+                    ptList(2,vals+1) = y;
+                    vals = vals+1;
+                    %fprintf('determinant: %d, Hess: (%d, %d); Grad: (%d, %d), [%i,%i] \n', determinant, Hx(y,x), Hy(y,x), Gx(y,x), Gy(y,x), x, y);    
+                end
+                
+            end
+        end
+    end
+end
+
 function ptList = heightPoints(img)
     [xSize, ySize] = size(img);
     [iGx,iGy] = imgradientxy(img, 'central');
@@ -153,8 +219,8 @@ function ptList = heightPoints(img)
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     for x = 1:xSize
         for y = 1:ySize
-            gxValue = iGx(x,y);
-            gyValue = iGy(x,y);       
+            gxValue = iGx(y,x);
+            gyValue = iGy(y,x);       
             if ~almostZero(gxValue) || ~almostZero(gyValue)
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
