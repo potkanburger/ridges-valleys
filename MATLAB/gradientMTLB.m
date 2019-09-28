@@ -13,8 +13,10 @@ if gray
 else
     I = rgb2gray(ITEMP);
 end
+global Gx;
+global Gy;
+[Gx,Gy] = gaussfiltgradientxy(I,2);
 
-[Gx,Gy] = imgradientxy(I, 'central');
 figure(1)
 imshowpair(Gx,Gy,'montage')
 title('Directional Gradients Gx and Gy, Using Central Difference')
@@ -38,6 +40,8 @@ title('HeightPoints');
 saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'))
 hold off;
 
+global Hx;
+global Hy;
 [Hx, Hy] = hessianXgradient(I);
 
 figure(4)
@@ -80,6 +84,17 @@ function res = almostEqual(val1, val2)
     res = almostZero(val1-val2);     
 end
 
+function [resX, resY] = gaussfiltgradientxy2(I, sigma)
+    [tmpX, tmpY] = imgradientxy(double(I), 'central');
+    resX = imgaussfilt(tmpX, sigma);
+    resY = imgaussfilt(tmpY, sigma);
+end
+
+function [resX, resY] = gaussfiltgradientxy(I, sigma)
+    It = imgaussfilt(I, sigma);
+    [resX, resY] = imgradientxy(double(It), 'central');
+end
+
 function plotPoints(img, pts)
     xValues = pts(1,:);
     yValues = pts(2,:);
@@ -94,9 +109,10 @@ end
 
 
 function [gxx, gyy, gxy] = getSecondDerivatives(img)
-  [gx, gy] = imgradientxy(double(img), 'central');
-  [gxx, gxy] = imgradientxy(double(gx), 'central');
-  [gyx, gyy] = imgradientxy(double(gy), 'central');
+  global Gx;
+  global Gy;
+  [gxx, gxy] = imgradientxy(double(Gx), 'central');
+  [gyx, gyy] = imgradientxy(double(Gy), 'central');
 end
 
 function mat = hessian(gxx, gyy, gxy, x, y)
@@ -113,8 +129,9 @@ function [a,b,c] = getHessianABC(hessMat)
 end
 
 function [hessGradientX,hessGradientY] = hessianXgradient(img)
+    global Gx;
+    global Gy;
     [xSize, ySize] = size(img);
-    [iGx,iGy] = imgradientxy(img, 'central');
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     hessGradientX = zeros(size(img),'like',img);
     hessGradientY = zeros(size(img),'like',img);
@@ -122,8 +139,8 @@ function [hessGradientX,hessGradientY] = hessianXgradient(img)
         for y = 1:ySize
             localHessian = hessian(iGxx, iGyy, iGxy, x, y);
             [a,b,c] = getHessianABC(localHessian);
-            hessGradientX(y, x) = a*iGx(y,x) + b*iGy(y,x);
-            hessGradientY(y, x) = b*iGx(y,x) + c*iGy(y,x);
+            hessGradientX(y, x) = a*Gx(y,x) + b*Gy(y,x);
+            hessGradientY(y, x) = b*Gx(y,x) + c*Gy(y,x);
         end
     end
 end
@@ -187,8 +204,12 @@ function cleared = onlyPx(ptList, mat)
 end
 
 function ptList = alternateheightPoints(img)
-    [Gx,Gy] = imgradientxy(img, 'central');
-    [Hx, Hy] = hessianXgradient(img);
+    global Gx;
+    global Gy;
+    
+    global Hx;
+    global Hy;
+    
     [xSize, ySize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     vals = 0;
@@ -213,14 +234,15 @@ function ptList = alternateheightPoints(img)
 end
 
 function ptList = heightPoints(img)
+    global Gx;
+    global Gy;
     [xSize, ySize] = size(img);
-    [iGx,iGy] = imgradientxy(img, 'central');
     vals = 0;
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     for x = 1:xSize
         for y = 1:ySize
-            gxValue = iGx(y,x);
-            gyValue = iGy(y,x);       
+            gxValue = Gx(y,x);
+            gyValue = Gy(y,x);       
             if ~almostZero(gxValue) || ~almostZero(gyValue)
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
