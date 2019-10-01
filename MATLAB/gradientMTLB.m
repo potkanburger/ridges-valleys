@@ -35,7 +35,7 @@ mL = heightPoints(I);
 figure(3)
 imshow(I);
 hold on;
-plotPoints(I, mL);
+plotPoints(I, mL, 'r+');
 title('HeightPoints');
 saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'))
 hold off;
@@ -47,7 +47,7 @@ global Hy;
 figure(4)
 imshow(I);
 hold on;
-plotPointsBig(I, mL);
+plotPointsBig(I, mL, 'ro');
 title('HP with Gradient Vectors');
 quiver(Gx, Gy);
 quiver(Hx, Hy);
@@ -60,7 +60,7 @@ imshow(I);
 hold on;
 amL = alternateheightPoints(I);
 
-plotPointsBig(I, amL);
+plotPointsBig(I, amL, 'ro');
 
 clGx = onlyPx(amL, Gx);
 clGy = onlyPx(amL, Gy);
@@ -73,8 +73,31 @@ quiver(clHx, clHy);
 saveas(gcf,strcat('only_heightpoints_vectors_',imgString,'_MATLAB.png'))
 hold off;
 
+figure(6)
+imshow(I);
+hold on;
+HPG1 = getHeightPoints(I, 1);
+HPG15 = getHeightPoints(I, 1.5);
+HPG2 = getHeightPoints(I, 2);
+title('Height Points with Gaussians sigma 1, 1.5, 2');
+plotPoints(I, HPG1, 'ro');
+plotPoints(I, HPG15, 'bo');
+plotPoints(I, HPG2, 'go');
+hold off;
 
 % close all
+
+function ptList = getHeightPoints(img, sigma)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+
+    [Gx,Gy] = gaussfiltgradientxy(img,sigma);
+    [Hx, Hy] = hessianXgradient(img);
+    
+    ptList = alternateheightPoints(img);
+end
 
 function res = almostZero(val)
     res = abs(val) <= 0.000000000001;   
@@ -95,16 +118,16 @@ function [resX, resY] = gaussfiltgradientxy(I, sigma)
     [resX, resY] = imgradientxy(double(It), 'central');
 end
 
-function plotPoints(img, pts)
+function plotPoints(img, pts, ptMarker)
     xValues = pts(1,:);
     yValues = pts(2,:);
-    plot(xValues, yValues, 'r+', 'LineWidth', 2, 'MarkerSize', 2);
+    plot(xValues, yValues, ptMarker, 'LineWidth', 2, 'MarkerSize', 2);
 end
 
-function plotPointsBig(img, pts)
+function plotPointsBig(img, pts, ptMarker)
     xValues = pts(1,:);
     yValues = pts(2,:);
-    plot(xValues, yValues, 'ro', 'LineWidth', 4, 'MarkerSize', 4);
+    plot(xValues, yValues, ptMarker , 'LineWidth', 4, 'MarkerSize', 4);
 end
 
 
