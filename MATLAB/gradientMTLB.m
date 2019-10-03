@@ -85,6 +85,12 @@ plotPoints(I, HPG15, 'bo');
 plotPoints(I, HPG2, 'go');
 hold off;
 
+figure(7)
+imshow(I);
+hold on;
+quiver(Gx, Gy);
+plotPoints(I, HPG1, 'ro');
+hold off;
 % close all
 
 function ptList = getHeightPoints(img, sigma)
