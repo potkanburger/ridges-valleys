@@ -113,8 +113,12 @@ function res = almostZero(val)
     res = abs(val) <= 1e-38;   
 end
 
+function res = customAlmostZero(val, cst)
+    res = abs(val) <= cst;   
+end
+
 function res = almostEqual(val1, val2)
-    res = almostZero(val1-val2);     
+    res = customAlmostZero(val1-val2, 1e-10) && sign(val1) == sign(val2);     
 end
 
 function [resX, resY] = gaussfiltgradientxy2(I, sigma)
