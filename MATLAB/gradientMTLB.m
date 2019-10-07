@@ -85,10 +85,14 @@ plotPoints(I, HPG15, 'bo');
 plotPoints(I, HPG2, 'go');
 hold off;
 
+[EVect1X, EVect1Y, EVect2X, EVect2Y] = eigvectorsHessian(I);
+
 figure(7)
 imshow(I);
 hold on;
 quiver(Gx, Gy);
+quiver(EVect1X/10.0, EVect1Y/10.0, 'AutoScale','off');
+quiver(EVect2X/10.0, EVect2Y/10.0, 'AutoScale','off');
 plotPoints(I, HPG1, 'ro');
 hold off;
 % close all
@@ -106,7 +110,7 @@ function ptList = getHeightPoints(img, sigma)
 end
 
 function res = almostZero(val)
-    res = abs(val) <= 0.000000000001;   
+    res = abs(val) <= 1e-38;   
 end
 
 function res = almostEqual(val1, val2)
@@ -157,6 +161,30 @@ function [a,b,c] = getHessianABC(hessMat)
     c = hessMat(2,2);
 end
 
+function [eigvector1X, eigvector1Y, eigvector2X, eigvector2Y] = eigvectorsHessian(img)
+    global Gx;
+    global Gy;
+    [xSize, ySize] = size(img);
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    eigvector1X = zeros(size(img),'like',img);
+    eigvector1Y = zeros(size(img),'like',img);
+    eigvector2X = zeros(size(img),'like',img);
+    eigvector2Y = zeros(size(img),'like',img);
+    
+    for x = 1:xSize
+        for y = 1:ySize
+            localHessian = hessian(iGxx, iGyy, iGxy, x, y);
+            [a,b,c] = getHessianABC(localHessian);
+            [E,D] = eig(localHessian);
+            eigvector1X(y, x) = E(1,1);
+            eigvector1Y(y, x) = E(1,2);
+            
+            eigvector2X(y, x) = E(2,1);
+            eigvector2Y(y, x) = E(2,2);
+        end
+    end
+
+end
 function [hessGradientX,hessGradientY] = hessianXgradient(img)
     global Gx;
     global Gy;
@@ -182,7 +210,7 @@ function isLin = pixelIsLinear(hessVal, gxValue, gyValue)
     determinant = hessGradientX*gyValue - hessGradientY*gxValue;
     
     if (almostZero(hessGradientX) && almostZero(hessGradientY)) || (almostZero(gxValue) && almostZero(gyValue))
-        isLin = False;
+        isLin = false;
     else
         isLin = determinant == 0;
     end
