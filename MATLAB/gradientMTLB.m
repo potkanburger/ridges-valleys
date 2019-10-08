@@ -1,6 +1,6 @@
 % parameters
 
-imgString = 'ellipses_generated';
+imgString = 'single_ellipse_generated';
 imgExtension = '.jpg';
 gray = true;
 
@@ -22,17 +22,17 @@ imshowpair(Gx,Gy,'montage')
 title('Directional Gradients Gx and Gy, Using Central Difference')
 saveas(gcf,strcat(imgString,'MATLAB.png'))
 
-pyXgrad = imread(strcat('x_gradient_',imgString,'.jpg'));
-pyYgrad = imread(strcat('y_gradient_',imgString,'.jpg'));
-figure(2)
-
-imshowpair(pyXgrad,pyYgrad,'montage')
-title('Directional Gradients Gx and Gy, Using Central Difference, From Python')
-saveas(gcf,strcat(imgString,'PYT.png'))
+% pyXgrad = imread(strcat('x_gradient_',imgString,'.jpg'));
+% pyYgrad = imread(strcat('y_gradient_',imgString,'.jpg'));
+% 
+% figure(1)
+% imshowpair(pyXgrad,pyYgrad,'montage')
+% title('Directional Gradients Gx and Gy, Using Central Difference, From Python')
+% saveas(gcf,strcat(imgString,'PYT.png'))
 
 mL = heightPoints(I);
 
-figure(3)
+figure(2)
 imshow(I);
 hold on;
 plotPoints(I, mL, 'r+');
@@ -44,7 +44,7 @@ global Hx;
 global Hy;
 [Hx, Hy] = hessianXgradient(I);
 
-figure(4)
+figure(3)
 imshow(I);
 hold on;
 plotPointsBig(I, mL, 'ro');
@@ -55,7 +55,7 @@ quiver(Hx, Hy);
 saveas(gcf,strcat('vectors_',imgString,'_MATLAB.png'))
 hold off;
 
-figure(5)
+figure(4)
 imshow(I);
 hold on;
 amL = alternateheightPoints(I);
@@ -73,7 +73,7 @@ quiver(clHx, clHy);
 saveas(gcf,strcat('only_heightpoints_vectors_',imgString,'_MATLAB.png'))
 hold off;
 
-figure(6)
+figure(5)
 imshow(I);
 hold on;
 HPG1 = getHeightPoints(I, 1);
@@ -89,7 +89,7 @@ hold off;
 
 [HPG1, HP_NO_EIGVAL_CTRL] = getHeightPoints2(I, 1);
 
-figure(7)
+figure(6)
 imshow(I);
 hold on;
 quiver(Gx, Gy);
