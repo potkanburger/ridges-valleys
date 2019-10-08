@@ -1,3 +1,4 @@
+run('C:\Program Files\DIPimage 2.9\dipstart.m')
 % parameters
 
 imgString = 'single_ellipse_generated';
@@ -8,6 +9,11 @@ gray = true;
 fullImgPath = strcat(imgString,imgExtension);
 ITEMP = imread(fullImgPath);
 ITEMP = im2double(ITEMP);
+
+ITEMP = generateImg(ITEMP);
+%ITEMP = double(rr);
+%ITEMP = double((rr + (rr+15))/2);
+
 if gray
     I = ITEMP;
 else
@@ -99,6 +105,30 @@ plotPointsBig(I, HP_NO_EIGVAL_CTRL, 'go');
 plotPoints(I, HPG1, 'ro');
 hold off;
 % close all
+
+
+function res = generateImg(inImg)
+    res = zeros(size(inImg),'like',inImg);
+    [xSize, ySize] = size(inImg);
+    maxPoints = [100, 100];
+    maxPoints(:,:,2)= [230,230];
+    maxPoints = squeeze(maxPoints);
+    for x = 1:xSize
+        for y = 1:ySize
+            distance = xSize;
+            for p = 1:size(maxPoints,2)
+                tmp_dst = sqrt((x - maxPoints(2,p))^2 + (y - maxPoints(1,p)/4)^2);
+                if tmp_dst < distance
+                    distance = tmp_dst;
+                end
+            end      
+
+            val = double(255-distance);
+            res(y,x) = val;
+        end
+    end
+end
+
 
 function ptList = getHeightPoints(img, sigma)
     global Gx;
