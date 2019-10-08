@@ -1,4 +1,3 @@
-run('C:\Program Files\DIPimage 2.9\dipstart.m')
 % parameters
 
 imgString = 'single_ellipse_generated';
@@ -10,8 +9,8 @@ fullImgPath = strcat(imgString,imgExtension);
 ITEMP = imread(fullImgPath);
 ITEMP = im2double(ITEMP);
 
-ITEMP = generateImg(ITEMP);
-%ITEMP = double(rr);
+%ITEMP = generateImg(ITEMP);
+ITEMP = double(rr);
 %ITEMP = double((rr + (rr+15))/2);
 
 if gray
@@ -108,25 +107,34 @@ hold off;
 
 
 function res = generateImg(inImg)
-    res = zeros(size(inImg),'like',inImg);
-    [xSize, ySize] = size(inImg);
-    maxPoints = [100, 100];
-    maxPoints(:,:,2)= [230,230];
-    maxPoints = squeeze(maxPoints);
-    for x = 1:xSize
-        for y = 1:ySize
-            distance = xSize;
-            for p = 1:size(maxPoints,2)
-                tmp_dst = sqrt((x - maxPoints(2,p))^2 + (y - maxPoints(1,p)/4)^2);
-                if tmp_dst < distance
-                    distance = tmp_dst;
-                end
-            end      
+%     res = zeros(size(inImg),'like',inImg);
+%     [xSize, ySize] = size(inImg);
+%     maxPoints = [100, 100];
+%     maxPoints(:,:,2)= [230,230];
+%     maxPoints = squeeze(maxPoints);
+%     for x = 1:xSize
+%         for y = 1:ySize
+%             distance = xSize;
+%             for p = 1:size(maxPoints,2)
+%                 tmp_dst = sqrt((x - maxPoints(2,p))^2 + (y - maxPoints(1,p)/4)^2);
+%                 if tmp_dst < distance
+%                     distance = tmp_dst;
+%                 end
+%             end      
+% 
+%             val = double(255-distance);
+%             res(y,x) = val;
+%         end
+%     end
 
-            val = double(255-distance);
-            res(y,x) = val;
-        end
-    end
+alpha = pi*30/180;
+a = 10;
+b = 30;
+sx = 10;
+sy = 5;
+ellipse = sqrt(((xx(50,60) - sx)*cos(alpha) + (yy(50,60) -sy)*sin(alpha))^2/a^2 + ((xx(50,60) - sx)*sin(alpha) - (yy(50,60) -sy)*cos(alpha))^2/b^2);
+
+res = double(ellipse);
 end
 
 
@@ -156,7 +164,7 @@ end
 
 
 function res = determinantTolerance(val)
-    res = almostZeroTolerance(val, 1e-13);
+    res = almostZeroTolerance(val, 1e-15);
 end
 
 function res = almostZero(val)
@@ -203,10 +211,10 @@ function [gxx, gyy, gxy] = getSecondDerivatives(img)
 end
 
 function mat = hessian(gxx, gyy, gxy, x, y)
-    mat(1,1) = gxx(x,y);
-    mat(1,2) = gxy(x,y);
-    mat(2,1) = gxy(x,y);
-    mat(2,2) = gyy(x,y);
+    mat(1,1) = gxx(y, x);
+    mat(1,2) = gxy(y, x);
+    mat(2,1) = gxy(y, x);
+    mat(2,2) = gyy(y, x);
 end
 
 function [a,b,c] = getHessianABC(hessMat)
@@ -218,7 +226,7 @@ end
 function [eigvector1X, eigvector1Y, eigvector2X, eigvector2Y] = eigvectorsHessian(img)
     global Gx;
     global Gy;
-    [xSize, ySize] = size(img);
+    [ySize, xSize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     eigvector1X = zeros(size(img),'like',img);
     eigvector1Y = zeros(size(img),'like',img);
@@ -242,7 +250,7 @@ end
 function [hessGradientX,hessGradientY] = hessianXgradient(img)
     global Gx;
     global Gy;
-    [xSize, ySize] = size(img);
+    [ySize, xSize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     hessGradientX = zeros(size(img),'like',img);
     hessGradientY = zeros(size(img),'like',img);
@@ -328,7 +336,7 @@ function ptList = alternateheightPoints(img)
     global Hx;
     global Hy;
     
-    [xSize, ySize] = size(img);
+    [ySize, xSize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     vals = 0;
     for x = 1:xSize
@@ -349,6 +357,10 @@ function ptList = alternateheightPoints(img)
             end
         end
     end
+    if(vals == 0)
+        ptList = [];
+    end
+    
 end
 
 
@@ -359,7 +371,7 @@ function [ptList, ptListSameEigVals] = alternateheightPoints2(img)
     global Hx;
     global Hy;
     fid=fopen("Log_heightpoints.txt", 'w');
-    [xSize, ySize] = size(img);
+    [ySize, xSize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     vals = 0;
     valsE = 0;
@@ -399,13 +411,22 @@ function [ptList, ptListSameEigVals] = alternateheightPoints2(img)
             end
         end
     end
+    
+    if(vals == 0)
+        ptList = [];
+    end
+    
+    if(valsE == 0)
+        ptListSameEigVals = [];
+    end
+    
     fclose(fid);
 end
 
 function ptList = heightPoints(img)
     global Gx;
     global Gy;
-    [xSize, ySize] = size(img);
+    [ySize, xSize] = size(img);
     vals = 0;
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     for x = 1:xSize
@@ -424,6 +445,10 @@ function ptList = heightPoints(img)
                 end
             end
         end
+    end
+    
+    if(vals == 0)
+        ptList = [];
     end
 end
 
