@@ -87,12 +87,15 @@ hold off;
 
 [EVect1X, EVect1Y, EVect2X, EVect2Y] = eigvectorsHessian(I);
 
+[HPG1, HP_NO_EIGVAL_CTRL] = getHeightPoints2(I, 1);
+
 figure(7)
 imshow(I);
 hold on;
 quiver(Gx, Gy);
-quiver(EVect1X/10.0, EVect1Y/10.0, 'AutoScale','off');
-quiver(EVect2X/10.0, EVect2Y/10.0, 'AutoScale','off');
+quiver(EVect1X/2.0, EVect1Y/2.0, 'AutoScale','off');
+quiver(EVect2X/2.0, EVect2Y/2.0, 'AutoScale','off');
+plotPointsBig(I, HP_NO_EIGVAL_CTRL, 'go');
 plotPoints(I, HPG1, 'ro');
 hold off;
 % close all
@@ -109,16 +112,33 @@ function ptList = getHeightPoints(img, sigma)
     ptList = alternateheightPoints(img);
 end
 
+function [ptList, ptListSameEigVals] = getHeightPoints2(img, sigma)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+
+    [Gx,Gy] = gaussfiltgradientxy(img,sigma);
+    [Hx, Hy] = hessianXgradient(img);
+    
+    [ptList, ptListSameEigVals] = alternateheightPoints2(img);
+end
+
+
+function res = determinantTolerance(val)
+    res = almostZeroTolerance(val, 1e-13);
+end
+
 function res = almostZero(val)
     res = abs(val) <= 1e-38;   
 end
 
-function res = customAlmostZero(val, cst)
-    res = abs(val) <= cst;   
+function res = almostZeroTolerance(val, tolerance)
+    res = abs(val) <= tolerance;   
 end
 
 function res = almostEqual(val1, val2)
-    res = customAlmostZero(val1-val2, 1e-10) && sign(val1) == sign(val2);     
+    res = almostZeroTolerance(val1-val2, 1e-38) && sign(val1) == sign(val2);     
 end
 
 function [resX, resY] = gaussfiltgradientxy2(I, sigma)
@@ -200,8 +220,15 @@ function [hessGradientX,hessGradientY] = hessianXgradient(img)
         for y = 1:ySize
             localHessian = hessian(iGxx, iGyy, iGxy, x, y);
             [a,b,c] = getHessianABC(localHessian);
-            hessGradientX(y, x) = a*Gx(y,x) + b*Gy(y,x);
-            hessGradientY(y, x) = b*Gx(y,x) + c*Gy(y,x);
+            %cmp = [(a*Gx(y,x) + b*Gy(y,x)) (b*Gx(y,x) + c*Gy(y,x))];
+            %hessGradientX(y, x) = a*Gx(y,x) + b*Gy(y,x);
+            %hessGradientY(y, x) = b*Gx(y,x) + c*Gy(y,x);
+            tt = [Gx(y,x) Gy(y,x)];
+            tt = tt.';
+            test = localHessian * tt;
+            
+            hessGradientX(y, x) = test(1);
+            hessGradientY(y, x) = test(2);
         end
     end
 end
@@ -216,7 +243,7 @@ function isLin = pixelIsLinear(hessVal, gxValue, gyValue)
     if (almostZero(hessGradientX) && almostZero(hessGradientY)) || (almostZero(gxValue) && almostZero(gyValue))
         isLin = false;
     else
-        isLin = determinant == 0;
+        isLin = determinantTolerance(determinant);
     end
     %if isLin
     %    hessGradientX
@@ -278,7 +305,7 @@ function ptList = alternateheightPoints(img)
         for y = 1:ySize
             determinant = Hx(y,x)*Gy(y,x) - Hy(y,x)*Gx(y,x);
        
-            if(determinant == 0) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+            if determinantTolerance(determinant) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
                 
@@ -292,6 +319,57 @@ function ptList = alternateheightPoints(img)
             end
         end
     end
+end
+
+
+function [ptList, ptListSameEigVals] = alternateheightPoints2(img)
+    global Gx;
+    global Gy;
+    
+    global Hx;
+    global Hy;
+    fid=fopen("Log_heightpoints.txt", 'w');
+    [xSize, ySize] = size(img);
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    vals = 0;
+    valsE = 0;
+    for x = 1:xSize
+        for y = 1:ySize
+            fprintf(fid, '[%i,%i]', x, y);
+            
+            determinant = Hx(y,x)*Gy(y,x) - Hy(y,x)*Gx(y,x);
+            fprintf(fid, 'determinant: %d, Hess: (%d, %d); Grad: (%d, %d)', determinant, Hx(y,x), Hy(y,x), Gx(y,x), Gy(y,x));
+            
+            isHP = false;
+            
+            if determinantTolerance(determinant) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+                hessVal = hessian(iGxx, iGyy, iGxy, x, y);
+                eigVals = eig(hessVal);
+                
+                if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)))
+                    ptListSameEigVals(1,vals+1) = x;
+                    ptListSameEigVals(2,vals+1) = y;
+                    valsE = valsE + 1;
+                end
+                
+                if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
+                    ptList(1,vals+1) = x;
+                    ptList(2,vals+1) = y;
+                    vals = vals+1;
+                    isHP = true;
+                end
+                fprintf(fid, ' ; eigenvalues : [%d,%d]', eigVals(1), eigVals(2));
+                
+            end
+            
+            if isHP
+                fprintf(fid, ' ; is HeightPoint!\n');
+            else
+                fprintf(fid, ' ; is NOT heightpoint\n');
+            end
+        end
+    end
+    fclose(fid);
 end
 
 function ptList = heightPoints(img)
