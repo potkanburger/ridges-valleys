@@ -1,6 +1,6 @@
 % parameters
-
-imgString = 'single_ellipse_generated';
+clear all;
+imgString = 'ellipses_generated';
 imgExtension = '.jpg';
 gray = true;
 
@@ -9,8 +9,10 @@ fullImgPath = strcat(imgString,imgExtension);
 ITEMP = imread(fullImgPath);
 ITEMP = im2double(ITEMP);
 
-%ITEMP = generateImg(ITEMP);
-ITEMP = double(rr);
+global mathHp;
+
+ITEMP = generateImg(ITEMP);
+%ITEMP = double(rr);
 %ITEMP = double((rr + (rr+15))/2);
 
 if gray
@@ -21,6 +23,10 @@ end
 global Gx;
 global Gy;
 [Gx,Gy] = gaussfiltgradientxy(I,2);
+
+global Hx;
+global Hy;
+[Hx, Hy] = hessianXgradient(I);
 
 figure(1)
 imshowpair(Gx,Gy,'montage')
@@ -35,7 +41,7 @@ saveas(gcf,strcat(imgString,'MATLAB.png'))
 % title('Directional Gradients Gx and Gy, Using Central Difference, From Python')
 % saveas(gcf,strcat(imgString,'PYT.png'))
 
-mL = heightPoints(I);
+mL = alternateheightPoints(I);
 
 figure(2)
 imshow(I);
@@ -44,10 +50,6 @@ plotPoints(I, mL, 'r+');
 title('HeightPoints');
 saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'))
 hold off;
-
-global Hx;
-global Hy;
-[Hx, Hy] = hessianXgradient(I);
 
 figure(3)
 imshow(I);
@@ -63,14 +65,13 @@ hold off;
 figure(4)
 imshow(I);
 hold on;
-amL = alternateheightPoints(I);
 
-plotPointsBig(I, amL, 'ro');
+plotPointsBig(I, mL, 'ro');
 
-clGx = onlyPx(amL, Gx);
-clGy = onlyPx(amL, Gy);
-clHx = onlyPx(amL, Hx);
-clHy = onlyPx(amL, Hy);
+clGx = onlyPx(mL, Gx);
+clGy = onlyPx(mL, Gy);
+clHx = onlyPx(mL, Hx);
+clHy = onlyPx(mL, Hy);
 
 title('Alternate HP with Gradient Vectors');
 quiver(clGx, clGy);
@@ -90,23 +91,33 @@ plotPoints(I, HPG15, 'bo');
 plotPoints(I, HPG2, 'go');
 hold off;
 
-[EVect1X, EVect1Y, EVect2X, EVect2Y] = eigvectorsHessian(I);
+% [EVect1X, EVect1Y, EVect2X, EVect2Y] = eigvectorsHessian(I);
+% 
+% [HPG1, HP_NO_EIGVAL_CTRL] = getHeightPoints2(I, 1);
+% 
+% figure(6)
+% imshow(I);
+% hold on;
+% quiver(Gx, Gy);
+% quiver(EVect1X/2.0, EVect1Y/2.0, 'AutoScale','off');
+% quiver(EVect2X/2.0, EVect2Y/2.0, 'AutoScale','off');
+% plotPointsBig(I, HP_NO_EIGVAL_CTRL, 'go');
+% plotPoints(I, HPG1, 'ro');
+% hold off;
 
-[HPG1, HP_NO_EIGVAL_CTRL] = getHeightPoints2(I, 1);
 
-figure(6)
-imshow(I);
-hold on;
-quiver(Gx, Gy);
-quiver(EVect1X/2.0, EVect1Y/2.0, 'AutoScale','off');
-quiver(EVect2X/2.0, EVect2Y/2.0, 'AutoScale','off');
-plotPointsBig(I, HP_NO_EIGVAL_CTRL, 'go');
-plotPoints(I, HPG1, 'ro');
-hold off;
+% figure(7)
+% imshow(I);
+% hold on;
+% title('Height Points from Mathematical function');
+% plotPoints(I, mathHp, 'r+');
+% hold off;
+
 % close all
 
 
 function res = generateImg(inImg)
+global mathHp;
 %     res = zeros(size(inImg),'like',inImg);
 %     [xSize, ySize] = size(inImg);
 %     maxPoints = [100, 100];
@@ -128,11 +139,112 @@ function res = generateImg(inImg)
 %     end
 
 alpha = pi*30/180;
-a = 10;
+a = 20;
 b = 30;
-sx = 10;
+sx = 0;
 sy = 5;
-ellipse = sqrt(((xx(50,60) - sx)*cos(alpha) + (yy(50,60) -sy)*sin(alpha))^2/a^2 + ((xx(50,60) - sx)*sin(alpha) - (yy(50,60) -sy)*cos(alpha))^2/b^2);
+
+sizeX = 50;
+sizeY = 60;
+ellipse = sqrt(((xx(sizeX,sizeY) - sx)*cos(alpha) + (yy(sizeX,sizeY) -sy)*sin(alpha))^2/a^2 + ((xx(sizeX,sizeY) - sx)*sin(alpha) - (yy(sizeX,sizeY) -sy)*cos(alpha))^2/b^2);
+
+syms x;
+syms y;
+math_ellipse = sqrt(((x-sx)*cos(alpha) + (y-sy)*sin(alpha))^2/a^2 + ((x-sx)*sin(alpha) - (y-sy)*cos(alpha))^2/b^2);
+
+gx = diff(math_ellipse, x);
+gy = diff(math_ellipse, y);
+
+gxx = diff(math_ellipse, x, 2);
+gyy = diff(math_ellipse, y, 2);
+gxy = diff(math_ellipse, x, y);
+
+hessian_mat(1,1) = gxx;
+hessian_mat(1,2) = gxy;
+hessian_mat(2,1) = gxy;
+hessian_mat(2,2) = gyy;
+
+tt = [gx gy];
+tt = tt.';
+H = hessian_mat * tt;
+
+hx = H(1);
+hy = H(2);
+
+determinant = hx*gy - hy*gx;
+vals = 0;
+
+for x = 1:sizeX
+    previousSign = 0;
+    previousDet = 0;
+    for y = 1:sizeY
+        try
+            detL = double(subs(determinant));
+            if y>1
+                changeSign = sign(detL) ~= previousSign;
+                
+                if (almostZeroTolerance(detL, 0) || changeSign) && ~almostZero(double(subs(gx))) && ~almostZero(double(subs(gy))) 
+                    
+                    if(almostZeroTolerance(detL, 0))
+                        valY = y;
+                    else
+                        if(abs(detL) <= abs(previousDet))
+                            valY = y;
+                        else
+                            valY = y-1;
+                        end
+                    end
+                    
+                    mathHp(1,vals+1) = x;
+                    mathHp(2,vals+1) = valY;
+                    vals = vals+1;
+
+                end                    
+            end
+            previousSign = sign(detL);
+            previousDet = detL;
+            
+        catch
+        end
+    end
+end
+
+for y = 1:sizeY
+    previousSign = 0;
+    previousDet = 0;
+    for x = 1:sizeX
+        try
+            detL = double(subs(determinant));
+            if x>1
+                changeSign = sign(detL) ~= previousSign;
+                
+                if (almostZeroTolerance(detL, 0) || changeSign) && ~almostZero(double(subs(gx))) && ~almostZero(double(subs(gy))) 
+                    
+                    if(almostZeroTolerance(detL, 0))
+                        valX = x;
+                    else
+                        if(abs(detL) <= abs(previousDet))
+                            valX = x;
+                        else
+                            valX = x-1;
+                        end
+                    end
+                    
+                    mathHp(1,vals+1) = valX;
+                    mathHp(2,vals+1) = y;
+                    vals = vals+1;
+
+                end                    
+            end
+            previousSign = sign(detL);
+            previousDet = detL;
+            
+        catch
+        end
+    end
+end
+
+
 
 res = double(ellipse);
 end
@@ -162,9 +274,37 @@ function [ptList, ptListSameEigVals] = getHeightPoints2(img, sigma)
     [ptList, ptListSameEigVals] = alternateheightPoints2(img);
 end
 
+function [determinant, tolerance] = getDeterminant(y, x)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+    
+    e = determinantTolerance();
+    localH = [Hy(y,x) Hx(y,x)];
+    
+    htol = (1/norm(localH));    
+    localH = localH/norm(localH);
 
-function res = determinantTolerance(val)
-    res = almostZeroTolerance(val, 1e-15);
+    localHy = localH(1);
+    localHx = localH(2);
+
+    localG = [Gy(y,x) Gx(y,x)];
+    
+    gtol = (1/norm(localG)); 
+    localG = localG/norm(localG);
+
+    localGy = localG(1);
+    localGx = localG(2);
+    
+    determinant = localHx*localGy - localHy*localGx;
+    tolerance = abs((htol+e)*(gtol+e)) - abs((htol-e)*(gtol-e));
+end
+
+
+
+function res = determinantTolerance()
+    res = 1e-38;
 end
 
 function res = almostZero(val)
@@ -179,27 +319,26 @@ function res = almostEqual(val1, val2)
     res = almostZeroTolerance(val1-val2, 1e-38) && sign(val1) == sign(val2);     
 end
 
-function [resX, resY] = gaussfiltgradientxy2(I, sigma)
-    [tmpX, tmpY] = imgradientxy(double(I), 'central');
-    resX = imgaussfilt(tmpX, sigma);
-    resY = imgaussfilt(tmpY, sigma);
-end
-
 function [resX, resY] = gaussfiltgradientxy(I, sigma)
     It = imgaussfilt(I, sigma);
     [resX, resY] = imgradientxy(double(It), 'central');
 end
 
 function plotPoints(img, pts, ptMarker)
-    xValues = pts(1,:);
-    yValues = pts(2,:);
-    plot(xValues, yValues, ptMarker, 'LineWidth', 2, 'MarkerSize', 2);
+
+    if(size(pts)>0)
+        xValues = pts(1,:);
+        yValues = pts(2,:);
+        plot(xValues, yValues, ptMarker, 'LineWidth', 2, 'MarkerSize', 2);
+    end
 end
 
 function plotPointsBig(img, pts, ptMarker)
-    xValues = pts(1,:);
-    yValues = pts(2,:);
-    plot(xValues, yValues, ptMarker , 'LineWidth', 4, 'MarkerSize', 4);
+    if(size(pts)>0)
+        xValues = pts(1,:);
+        yValues = pts(2,:);
+        plot(xValues, yValues, ptMarker , 'LineWidth', 4, 'MarkerSize', 4);
+    end
 end
 
 
@@ -281,7 +420,7 @@ function isLin = pixelIsLinear(hessVal, gxValue, gyValue)
     if (almostZero(hessGradientX) && almostZero(hessGradientY)) || (almostZero(gxValue) && almostZero(gyValue))
         isLin = false;
     else
-        isLin = determinantTolerance(determinant);
+        isLin = almostZeroTolerance(determinant, determinantTolerance());
     end
     %if isLin
     %    hessGradientX
@@ -340,23 +479,81 @@ function ptList = alternateheightPoints(img)
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
     vals = 0;
     for x = 1:xSize
+        previousSign = 0;
+        previousDet = 0;
         for y = 1:ySize
-            determinant = Hx(y,x)*Gy(y,x) - Hy(y,x)*Gx(y,x);
-       
-            if determinantTolerance(determinant) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
-                hessVal = hessian(iGxx, iGyy, iGxy, x, y);
-                eigVals = eig(hessVal);
-                
-                if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
-                    ptList(1,vals+1) = x;
-                    ptList(2,vals+1) = y;
-                    vals = vals+1;
-                    %fprintf('determinant: %d, Hess: (%d, %d); Grad: (%d, %d), [%i,%i] \n', determinant, Hx(y,x), Hy(y,x), Gx(y,x), Gy(y,x), x, y);    
+            [determinant, tol] = getDeterminant(y,x);
+            
+            if y > 1
+                changeSign = sign(determinant) ~= previousSign;
+                if (almostZeroTolerance(determinant, tol) || changeSign) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+                    hessVal = hessian(iGxx, iGyy, iGxy, x, y);
+                    eigVals = eig(hessVal);
+                    
+                    if(almostZeroTolerance(determinant, tol))
+                        valY = y;
+                    else
+                        if(abs(determinant) <= abs(previousDet))
+                            valY = y;
+                        else
+                            valY = y-1;
+                        end
+                    end
+                         
+                    
+                    if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
+                        ptList(1,vals+1) = x;
+                        ptList(2,vals+1) = valY;
+                        vals = vals+1;
+                    end
+
                 end
-                
             end
+            
+            previousDet = determinant;
+            previousSign = sign(determinant);
         end
     end
+    
+    for y = 1:ySize
+        previousSign = 0;
+        previousDet = 0;
+        for x = 1:xSize
+            [determinant, tol] = getDeterminant(y,x);
+            
+            if x > 1
+                changeSign = sign(determinant) ~= previousSign;
+                if (almostZeroTolerance(determinant, tol) || changeSign) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+                    hessVal = hessian(iGxx, iGyy, iGxy, x, y);
+                    eigVals = eig(hessVal);
+                    
+                    if(almostZeroTolerance(determinant, tol))
+                        valX = x;
+                    else
+                        if(abs(determinant) <= abs(previousDet))
+                            valX = x;
+                        else
+                            valX = x-1;
+                        end
+                    end
+                         
+                    
+                    if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
+                        ptList(1,vals+1) = valX;
+                        ptList(2,vals+1) = y;
+                        vals = vals+1;
+                    end
+
+                end
+            end
+            
+            previousDet = determinant;
+            previousSign = sign(determinant);
+        end
+    end
+    
+    
+    
     if(vals == 0)
         ptList = [];
     end
@@ -379,12 +576,12 @@ function [ptList, ptListSameEigVals] = alternateheightPoints2(img)
         for y = 1:ySize
             fprintf(fid, '[%i,%i]', x, y);
             
-            determinant = Hx(y,x)*Gy(y,x) - Hy(y,x)*Gx(y,x);
-            fprintf(fid, 'determinant: %d, Hess: (%d, %d); Grad: (%d, %d)', determinant, Hx(y,x), Hy(y,x), Gx(y,x), Gy(y,x));
+            [determinant, tol] = getDeterminant(y,x);
+            fprintf(fid, 'determinant: %d, tolerance: %d, Hess: (%d, %d); Grad: (%d, %d)', determinant, tol, Hx(y,x), Hy(y,x), Gx(y,x), Gy(y,x));
             
             isHP = false;
             
-            if determinantTolerance(determinant) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
+            if almostZeroTolerance(determinant, tol) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
                 hessVal = hessian(iGxx, iGyy, iGxy, x, y);
                 eigVals = eig(hessVal);
                 
