@@ -1,0 +1,1 @@
+run('C:\Program Files\DIPimage 2.9\dipstart.m')
