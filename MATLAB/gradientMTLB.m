@@ -21,9 +21,8 @@ ellipse_rotated = createImgStruct('rotated_ellipse', ITEMP, true);
 ITEMP = double(rr);
 circle = createImgStruct('circle', ITEMP, true);
 
-plotHeighPoints(ellipses_generated, ellipse_rotated, circle);
-
-
+%plotHeighPoints(ellipses_generated, ellipse_rotated, circle);
+plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
 
 
 %functions
@@ -49,6 +48,34 @@ function plotHeighPoints(varargin)
         plotPoints(I, HPG1, 'ro');
         saveas(gcf,strcat('hpts_',imgString,'MATLAB.png'));
         hold off;
+    end
+end
+
+function plotRidgesValleys(varargin)
+    for i = 1:nargin   
+        I = varargin{i}.data;
+        HPG1 = getHeightPoints(I, 1);
+        [ridges, pseudo_ridges, valleys, pseudo_valleys] = getRidgesValleys(HPG1, I);
+        imgString = varargin{i}.name;
+        
+        figure((i-1)*2 + 1)
+        imshow(I);
+        hold on;
+        title(sprintf('Ridges and pseudo-ridges of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [ridges pseudo_ridges], 'ro');
+        saveas(gcf,strcat('ridges_',imgString,'MATLAB.png'));
+        hold off;
+        
+        figure(i*2)
+        imshow(I);
+        hold on;
+        title(sprintf('Valleys and pseudo-valleys of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [valleys pseudo_valleys], 'ro');
+        saveas(gcf,strcat('valleys',imgString,'MATLAB.png'));
+        hold off;
+        
+        
+        
     end
 end
 
@@ -210,11 +237,14 @@ function ptList = calculateHeightPoints(img)
     vals = 0;
     for x = 1:xSize
         previousSign = 0;
-        previousDet = 0;
+        previousDet = 0;        
         for y = 1:ySize
             [determinant, tol] = getDeterminant(y,x);
             determinants(y, x) = determinant;
             tolerances(y,x) = tol;
+            diffEV1 = 0;
+            diffEV2 = 0;
+            
             if y > 1
                 changeSign = sign(determinant) ~= previousSign;
                 if (almostZeroTolerance(determinant, tol) || changeSign) && (~almostZero(Hx(y,x)) || ~almostZero(Hy(y,x))) && (~almostZero(Gx(y,x)) || ~almostZero(Gy(y,x)))
@@ -230,7 +260,6 @@ function ptList = calculateHeightPoints(img)
                             valY = y-1;
                         end
                     end
-                         
                     
                     if ~(almostZero(eigVals(1)) || almostZero(eigVals(2)) || almostEqual(eigVals(1), eigVals(2)))
                         ptList(1,vals+1) = x;
@@ -292,3 +321,85 @@ function ptList = calculateHeightPoints(img)
    
 end
 
+
+function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys(heightPoints, img)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+    nbHp = size(heightPoints);
+    nbHp = nbHp(2);
+    [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    valsRg = 0;
+    valsPsRg = 0;
+    valsValley = 0;
+    valsPsValley = 0;
+    for pt = 1:nbHp
+        xVal = heightPoints(1, pt);
+        yVal = heightPoints(2, pt);
+        
+        hessVal = hessian(iGxx, iGyy, iGxy, xVal, yVal);
+        eigVals = eig(hessVal);
+        
+        HxVal = Hx(yVal,xVal);
+        HyVal = Hy(yVal,xVal);
+        GxVal = Gx(yVal,xVal);
+        GyVal = Gy(yVal,xVal);
+        
+        ev1 = min(eigVals);
+        ev2 = max(eigVals);
+        
+        lengthH = sqrt(HxVal*HxVal + HyVal*HyVal);
+        lengthG = sqrt(GxVal*GxVal + GyVal*GyVal);
+
+        diffEV1 = abs(lengthH - ev1*lengthG);
+        diffEV2 = abs(lengthH - ev2*lengthG);
+        %idea?
+        %isEqEV1 = diffEV1 < diffEV2 && diffEV1 < lengthH/1000;
+        %isEqEV2 = diffEV2 < diffEV1 && diffEV2 < lengthH/1000;
+        
+        isEqEV1 = diffEV1 < diffEV2;
+        isEqEV2 = diffEV2 < diffEV1;
+        
+        if isEqEV1
+            if ev2 > 0
+                %valley
+                valleyList(1,valsValley+1) = xVal;
+                valleyList(2,valsValley+1) = yVal;
+                valsValley = valsValley+1;
+            elseif ev2 < 0
+               %pseudo-ridge
+                pseudoRgList(1,valsPsRg+1) = xVal;
+                pseudoRgList(2,valsPsRg+1) = yVal;
+                valsPsRg = valsPsRg+1;
+            end
+        elseif isEqEV2
+            if ev1 < 0
+                %ridge
+                rgList(1,valsRg+1) = xVal;
+                rgList(2,valsRg+1) = yVal;
+                valsRg = valsRg+1;
+            elseif ev1 > 0
+                %pseudo-valley
+                pseudoValleyList(1,valsPsValley+1) = xVal;
+                pseudoValleyList(2,valsPsValley+1) = yVal;
+                valsPsValley = valsPsValley+1;
+            end
+        end
+    end
+    if(valsRg == 0)
+        rgList = [];
+    end
+    
+    if(valsValley == 0)
+        valleyList = [];
+    end
+    
+    if(valsPsRg == 0)
+        pseudoRgList = [];
+    end
+    
+    if(valsPsValley == 0)
+        pseudoValleyList = [];
+    end
+end
