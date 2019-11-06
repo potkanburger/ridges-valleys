@@ -52,10 +52,18 @@ function plotHeighPoints(varargin)
 end
 
 function plotRidgesValleys(varargin)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+    global EVs1;
+    global EVs2;
+    global closestEV1;
+    global closestEV2;
     for i = 1:nargin   
         I = varargin{i}.data;
         HPG1 = getHeightPoints(I, 1);
-        [ridges, pseudo_ridges, valleys, pseudo_valleys] = getRidgesValleys(HPG1, I);
+        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getRidgesValleys(HPG1, I);
         imgString = varargin{i}.name;
         
         figure((i-1)*2 + 1)
@@ -74,8 +82,23 @@ function plotRidgesValleys(varargin)
         saveas(gcf,strcat('valleys',imgString,'MATLAB.png'));
         hold off;
         
+        clGx1 = onlyPx(excluded, Gx.*EVs1);
+        clGy1 = onlyPx(excluded, Gy.*EVs1);
+        clGx2 = onlyPx(excluded, Gx.*EVs2);
+        clGy2 = onlyPx(excluded, Gy.*EVs2);
+        clHx = onlyPx(excluded, Hx);
+        clHy = onlyPx(excluded, Hy);
         
         
+        figure(nargin*2+i)
+        hold on;
+        title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
+        quiver(clGx1, clGy1, 'b');
+        quiver(clGx2, clGy2, 'r');
+        quiver(clHx, clHy, 'g');
+        plotPoints(I, closestEV1, 'bo');
+        plotPoints(I, closestEV2, 'ro');
+        hold off;
     end
 end
 
@@ -230,10 +253,25 @@ function ptList = calculateHeightPoints(img)
     global Hx;
     global Hy;
     
+    global EVs1;
+    global EVs2;
+    
     determinants = zeros(size(img),'like',img);
     tolerances = zeros(size(img),'like',img);
     [ySize, xSize] = size(img);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
+    
+    %create EVs for tests
+    EVs1 = zeros(size(img),'like',img);
+    EVs2 = zeros(size(img),'like',img);
+    for x = 1:xSize
+        for y = 1:ySize
+            hessVal = hessian(iGxx, iGyy, iGxy, x, y);
+            eigVals = eig(hessVal);
+            EVs1(y,x) = min(eigVals);
+            EVs2(y,x) = max(eigVals);
+        end
+    end
     vals = 0;
     for x = 1:xSize
         previousSign = 0;
@@ -322,11 +360,20 @@ function ptList = calculateHeightPoints(img)
 end
 
 
-function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys(heightPoints, img)
+function [rgList, pseudoRgList, valleyList, pseudoValleyList, excluded] = getRidgesValleys(heightPoints, img)
     global Gx;
     global Gy;
     global Hx;
     global Hy;
+    
+    global closestEV1;
+    global closestEV2;
+    
+    closestEV1 = [];
+    closestEV2 = [];
+    valsCSE1 = 0;
+    valsCSE2 = 0;
+    
     nbHp = size(heightPoints);
     nbHp = nbHp(2);
     [iGxx, iGyy, iGxy] = getSecondDerivatives(img);
@@ -334,6 +381,7 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys
     valsPsRg = 0;
     valsValley = 0;
     valsPsValley = 0;
+    valsExc = 0;
     for pt = 1:nbHp
         xVal = heightPoints(1, pt);
         yVal = heightPoints(2, pt);
@@ -355,11 +403,21 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys
         diffEV1 = abs(lengthH - ev1*lengthG);
         diffEV2 = abs(lengthH - ev2*lengthG);
         %idea?
-        %isEqEV1 = diffEV1 < diffEV2 && diffEV1 < lengthH/1000;
-        %isEqEV2 = diffEV2 < diffEV1 && diffEV2 < lengthH/1000;
+        isEqEV1 = diffEV1 < diffEV2 && diffEV1 < lengthH/1000;
+        isEqEV2 = diffEV2 < diffEV1 && diffEV2 < lengthH/1000;
         
-        isEqEV1 = diffEV1 < diffEV2;
-        isEqEV2 = diffEV2 < diffEV1;
+        %isEqEV1 = diffEV1 < diffEV2;
+        %isEqEV2 = diffEV2 < diffEV1;
+        
+        if(diffEV1 < diffEV2)
+            closestEV1(1,valsCSE1+1) = xVal;
+            closestEV1(2,valsCSE1+1) = yVal;
+            valsCSE1 = valsCSE1+1;
+        elseif(diffEV2 < diffEV1)
+            closestEV2(1,valsCSE2+1) = xVal;
+            closestEV2(2,valsCSE2+1) = yVal;
+            valsCSE2 = valsCSE2+1;
+        end
         
         if isEqEV1
             if ev2 > 0
@@ -385,7 +443,11 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys
                 pseudoValleyList(2,valsPsValley+1) = yVal;
                 valsPsValley = valsPsValley+1;
             end
-        end
+        else
+            excluded(1,valsExc+1) = xVal;
+            excluded(2,valsExc+1) = yVal;
+            valsExc = valsExc+1;
+        end        
     end
     if(valsRg == 0)
         rgList = [];
@@ -401,5 +463,17 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList] = getRidgesValleys
     
     if(valsPsValley == 0)
         pseudoValleyList = [];
+    end
+    
+    if(valsExc == 0)
+        excluded = [];
+    end
+    
+    if(valsCSE1 == 0)
+        closestEV1 = [];
+    end
+    
+    if(valsCSE2 == 0)
+        closestEV2 = [];
     end
 end
