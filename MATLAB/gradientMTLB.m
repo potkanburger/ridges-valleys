@@ -92,6 +92,7 @@ function plotRidgesValleys(varargin)
         
         figure(nargin*2+i)
         hold on;
+        imshow(I);
         title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
         quiver(clGx1, clGy1, 'b');
         quiver(clGx2, clGy2, 'r');
