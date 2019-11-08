@@ -63,7 +63,7 @@ function plotRidgesValleys(varargin)
     for i = 1:nargin   
         I = varargin{i}.data;
         HPG1 = getHeightPoints(I, 1);
-        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getRidgesValleys(HPG1, I);
+        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getRidgesValleys(HPG1, I, 10e-3);
         imgString = varargin{i}.name;
         
         figure((i-1)*2 + 1)
@@ -71,6 +71,7 @@ function plotRidgesValleys(varargin)
         hold on;
         title(sprintf('Ridges and pseudo-ridges of %s', strrep(imgString, '_', ' ')));
         plotPoints(I, [ridges pseudo_ridges], 'ro');
+        plotPoints(I, excluded, 'go');
         saveas(gcf,strcat('ridges_',imgString,'MATLAB.png'));
         hold off;
         
@@ -78,28 +79,29 @@ function plotRidgesValleys(varargin)
         imshow(I);
         hold on;
         title(sprintf('Valleys and pseudo-valleys of %s', strrep(imgString, '_', ' ')));
-        plotPoints(I, [valleys pseudo_valleys], 'ro');
+        plotPoints(I, [valleys pseudo_valleys], 'bo');
+        plotPoints(I, excluded, 'go');
         saveas(gcf,strcat('valleys',imgString,'MATLAB.png'));
         hold off;
         
-        clGx1 = onlyPx(excluded, Gx.*EVs1);
-        clGy1 = onlyPx(excluded, Gy.*EVs1);
-        clGx2 = onlyPx(excluded, Gx.*EVs2);
-        clGy2 = onlyPx(excluded, Gy.*EVs2);
-        clHx = onlyPx(excluded, Hx);
-        clHy = onlyPx(excluded, Hy);
+%         clGx1 = onlyPx(excluded, Gx.*EVs1);
+%         clGy1 = onlyPx(excluded, Gy.*EVs1);
+%         clGx2 = onlyPx(excluded, Gx.*EVs2);
+%         clGy2 = onlyPx(excluded, Gy.*EVs2);
+%         clHx = onlyPx(excluded, Hx);
+%         clHy = onlyPx(excluded, Hy);
         
         
-        figure(nargin*2+i)
-        imshow(I);
-        hold on;        
-        title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
-        quiver(clGx1, clGy1, 'b');
-        quiver(clGx2, clGy2, 'r');
-        quiver(clHx, clHy, 'g');
-        plotPoints(I, closestEV1, 'bo');
-        plotPoints(I, closestEV2, 'ro');
-        hold off;
+%         figure(nargin*2+i)
+%         imshow(I);
+%         hold on;        
+%         title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
+%         quiver(clGx1, clGy1, 'b');
+%         quiver(clGx2, clGy2, 'r');
+%         quiver(clHx, clHy, 'g');
+%         plotPoints(I, closestEV1, 'bo');
+%         plotPoints(I, closestEV2, 'ro');
+%         hold off;
     end
 end
 
@@ -361,7 +363,7 @@ function ptList = calculateHeightPoints(img)
 end
 
 
-function [rgList, pseudoRgList, valleyList, pseudoValleyList, excluded] = getRidgesValleys(heightPoints, img)
+function [rgList, pseudoRgList, valleyList, pseudoValleyList, excluded] = getRidgesValleys(heightPoints,img, d_tolerance)
     global Gx;
     global Gy;
     global Hx;
@@ -398,14 +400,16 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, excluded] = getRid
         ev1 = min(eigVals);
         ev2 = max(eigVals);
         
-        lengthH = sqrt(HxVal*HxVal + HyVal*HyVal);
-        lengthG = sqrt(GxVal*GxVal + GyVal*GyVal);
-
-        diffEV1 = abs(lengthH - ev1*lengthG);
-        diffEV2 = abs(lengthH - ev2*lengthG);
+        %lengthH = sqrt(HxVal*HxVal + HyVal*HyVal);
+        %lengthG = sqrt(GxVal*GxVal + GyVal*GyVal);
+        
+        diffEV1 = abs(HxVal - ev1*GxVal) + abs(HyVal - ev1*GyVal);
+        diffEV2 = abs(HxVal - ev2*GxVal) + abs(HyVal - ev2*GyVal);
+        %diffEV1 = abs(lengthH - ev1*lengthG);
+        %diffEV2 = abs(lengthH - ev2*lengthG);
         %idea?
-        isEqEV1 = diffEV1 < diffEV2 && diffEV1 < lengthH/1000;
-        isEqEV2 = diffEV2 < diffEV1 && diffEV2 < lengthH/1000;
+        isEqEV1 = diffEV1 < diffEV2 && diffEV1 < d_tolerance;
+        isEqEV2 = diffEV2 < diffEV1 && diffEV2 < d_tolerance;
         
         %isEqEV1 = diffEV1 < diffEV2;
         %isEqEV2 = diffEV2 < diffEV1;
