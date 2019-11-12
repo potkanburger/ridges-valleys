@@ -26,7 +26,7 @@ circle = createImgStruct('circle', ITEMP, true);
 
 %last
 plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
-%plotFitRidgesValleys(ellipse_rotated);
+%plotFitLinRidgesValleys(ellipse_rotated);
 
 %functions
 
@@ -65,8 +65,6 @@ function plotRidgesValleys(varargin)
     global closestEV2;
     for i = 1:nargin   
         I = varargin{i}.data;
-        
-        
         
         HPG1 = getHeightPoints(I, 1);
         [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getRidgesValleys(HPG1, I, 10e-3);
@@ -125,15 +123,36 @@ ellipse = sqrt(((xx(sizeX,sizeY) - sx)*cos(alpha) + (yy(sizeX,sizeY) -sy)*sin(al
 res = double(ellipse);
 end
 
+function plotFitLinRidgesValleys(varargin)
+    for i = 1:nargin   
+        I = varargin{i}.data;
+        imgString = varargin{i}.name;
+        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getMathLinRidgesValleys(I, 9);
+        
+        figure(i)
+        imshow(I);
+        hold on;
+        title(sprintf('Ridges and pseudo-ridges of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [ridges pseudo_ridges], 'ro');
+        plotPoints(I, excluded, 'go');
+        hold off;
+        
+        figure(nargin+i)
+        imshow(I);
+        hold on;
+        title(sprintf('Valleys and pseudo-valleys of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [valleys pseudo_valleys], 'bo');
+        plotPoints(I, excluded, 'go');
+        hold off;
+    end
+end
+
+
 function plotFitRidgesValleys(varargin)
     global Gx;
     global Gy;
     global Hx;
     global Hy;
-    global EVs1;
-    global EVs2;
-    global closestEV1;
-    global closestEV2;
     
     posV = nargin;
     
@@ -158,8 +177,6 @@ function plotFitRidgesValleys(varargin)
         plotPoints(I, [valleys pseudo_valleys], 'bo');
         plotPoints(I, excluded, 'go');
         hold off;
-
-
     end
 end
 
@@ -561,7 +578,6 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = ge
     
     
     local_area_data = zeros([area_sidesize, area_sidesize], 'like', img); 
-    local_area_mapping = [];
        
     [ySize, xSize] = size(calcImg);
     
@@ -740,3 +756,162 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = ge
     end
     
 end
+
+
+function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = getMathLinRidgesValleys(img, area_sidesize)
+    valsRg = 0;
+    valsPsRg = 0;
+    valsValley = 0;
+    valsPsValley = 0;
+    valsExc = 0;
+    
+    if mod(area_sidesize,2) == 0
+        area_sidesize = area_sidesize + 1;
+    end
+    
+    area_half = (area_sidesize-1)/2; 
+    
+    
+    calcImg = img;
+    f_col = calcImg(:, 1);
+    l_col = calcImg(:,end);
+    for i = 1:area_half
+        calcImg = [f_col calcImg l_col];
+    end
+    
+    f_line = calcImg(1, :);
+    l_line = calcImg(end,:);
+    
+    for i = 1:area_half
+        calcImg = [f_line; calcImg;l_line];
+    end
+    
+    [ySize, xSize] = size(calcImg);
+    
+    local_area_data_x = zeros([1, area_sidesize], 'like', img)'; 
+    local_area_data_y = zeros([1, area_sidesize], 'like', img)';
+    
+    xyValues = [1:area_sidesize]';
+    
+    localCenter = 1+area_half;
+    nbVals = area_sidesize;
+    startPt = 1 + area_half;
+    
+    
+    for x = startPt:(xSize-area_half)
+        for y = startPt:(ySize-area_half)
+        
+            for localX = 1:area_sidesize
+                imgX = x - area_half + localX - 1;
+                local_area_data_x(localX) = calcImg(y, imgX);
+            end
+            
+            for localY = 1:area_sidesize
+                imgY = y - area_half + localY - 1;
+                local_area_data_y(localY) = calcImg(imgY, x);
+            end
+            
+            xFuncFit = fit(xyValues,local_area_data_x,'poly5');
+            yFuncFit = fit(xyValues,local_area_data_y,'poly5');
+            
+            syms a b;
+          
+            coeffsX = coeffvalues(xFuncFit);
+            p1 = coeffsX(1);
+            p2 = coeffsX(2);
+            p3 = coeffsX(3);
+            p4 = coeffsX(4);
+            p5 = coeffsX(5);
+            p6 = coeffsX(6);
+            xFunc = p1*a^5 + p2*a^4 + p3*a^3 + p4*a^2 + p5*a + p6;
+            
+            coeffsY = coeffvalues(yFuncFit);
+            p1 = coeffsY(1);
+            p2 = coeffsY(2);
+            p3 = coeffsY(3);
+            p4 = coeffsY(4);
+            p5 = coeffsY(5);
+            p6 = coeffsY(6);
+            
+            yFunc = p1*b^5 + p2*b^4 + p3*b^3 + p4*b^2 + p5*b + p6;
+            
+            gx = diff(xFunc);
+            gxx = diff(xFunc,2);
+            
+            gy = diff(yFunc);
+            gyy = diff(yFunc,2);
+            
+            Hgx = gxx*gx;
+            Hgy = gyy*gy;
+            
+            determinantX = @(p) double(subs(Hgx, a, p));
+            determinantY = @(p) double(subs(Hgy, b, p));
+            deter = Hgx*gy - Hgy*gx;
+            deterX = @(p) subs(deter, a, p);
+            determinant = @(m,n) double(subs(deterX(n), b, m));
+
+            signNb = sign(determinant(localCenter-1, localCenter-1));
+            changeSign = false;
+            for sX = 0:2
+                for sY = 0:2
+                    if(sign(determinant(localCenter-1+sY, localCenter-1+sX)) ~= signNb)
+                        changeSign = true;                        
+                    end
+                end
+            end
+            
+            
+            if(changeSign)
+ 
+                xVal = localCenter;
+                yVal = localCenter;
+                
+                xInCalcImg = x-area_half + xVal-1;
+                yInCalcImg = y-area_half + yVal-1;
+                
+                xInInputImg = xInCalcImg -area_half;
+                yInInputImg = yInCalcImg -area_half;
+                
+                undetermined(1,valsExc+1) = xInInputImg;
+                undetermined(2,valsExc+1) = yInInputImg;
+                valsExc = valsExc+1;
+            
+            else
+                res = sprintf("x,y: %d,%d", x, y);
+                
+                for sX = 0:2
+                    for sY = 0:2
+                        res = [res, ',', sprintf("%d", determinant(localCenter-1+sY,localCenter-1+sX))];
+                    end
+                end
+                
+                res= join(res)
+            end
+            
+            
+        end
+    end
+    
+    
+    if(valsRg == 0)
+        rgList = [];
+    end
+    
+    if(valsValley == 0)
+        valleyList = [];
+    end
+    
+    if(valsPsRg == 0)
+        pseudoRgList = [];
+    end
+    
+    if(valsPsValley == 0)
+        pseudoValleyList = [];
+    end
+    
+    if(valsExc == 0)
+        undetermined = [];
+    end
+    
+end
+
