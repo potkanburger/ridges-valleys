@@ -21,9 +21,12 @@ ellipse_rotated = createImgStruct('rotated_ellipse', ITEMP, true);
 ITEMP = double(rr);
 circle = createImgStruct('circle', ITEMP, true);
 
+%old
 %plotHeighPoints(ellipses_generated, ellipse_rotated, circle);
-plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
 
+%last
+plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
+%plotFitRidgesValleys(ellipse_rotated);
 
 %functions
 
@@ -62,20 +65,23 @@ function plotRidgesValleys(varargin)
     global closestEV2;
     for i = 1:nargin   
         I = varargin{i}.data;
+        
+        
+        
         HPG1 = getHeightPoints(I, 1);
         [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getRidgesValleys(HPG1, I, 10e-3);
         imgString = varargin{i}.name;
         
-        figure((i-1)*2 + 1)
+        figure(i)
         imshow(I);
         hold on;
         title(sprintf('Ridges and pseudo-ridges of %s', strrep(imgString, '_', ' ')));
         plotPoints(I, [ridges pseudo_ridges], 'ro');
         plotPoints(I, excluded, 'go');
-        saveas(gcf,strcat('ridges_',imgString,'MATLAB.png'));
         hold off;
         
-        figure(i*2)
+        
+        figure(nargin+i)
         imshow(I);
         hold on;
         title(sprintf('Valleys and pseudo-valleys of %s', strrep(imgString, '_', ' ')));
@@ -84,24 +90,25 @@ function plotRidgesValleys(varargin)
         saveas(gcf,strcat('valleys',imgString,'MATLAB.png'));
         hold off;
         
-%         clGx1 = onlyPx(excluded, Gx.*EVs1);
-%         clGy1 = onlyPx(excluded, Gy.*EVs1);
-%         clGx2 = onlyPx(excluded, Gx.*EVs2);
-%         clGy2 = onlyPx(excluded, Gy.*EVs2);
-%         clHx = onlyPx(excluded, Hx);
-%         clHy = onlyPx(excluded, Hy);
+        
+        clGx1 = onlyPx(excluded, Gx.*EVs1);
+        clGy1 = onlyPx(excluded, Gy.*EVs1);
+        clGx2 = onlyPx(excluded, Gx.*EVs2);
+        clGy2 = onlyPx(excluded, Gy.*EVs2);
+        clHx = onlyPx(excluded, Hx);
+        clHy = onlyPx(excluded, Hy);
         
         
-%         figure(nargin*2+i)
-%         imshow(I);
-%         hold on;        
-%         title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
-%         quiver(clGx1, clGy1, 'b');
-%         quiver(clGx2, clGy2, 'r');
-%         quiver(clHx, clHy, 'g');
-%         plotPoints(I, closestEV1, 'bo');
-%         plotPoints(I, closestEV2, 'ro');
-%         hold off;
+        figure(nargin*2+i)
+        imshow(I);
+        hold on;        
+        title(sprintf('Quivers eigenvalues and plot of the chosen one for %s', strrep(imgString, '_', ' ')));
+        quiver(clGx1, clGy1, 'b');
+        quiver(clGx2, clGy2, 'r');
+        quiver(clHx, clHy, 'g');
+        plotPoints(I, closestEV1, 'bo');
+        plotPoints(I, closestEV2, 'ro');
+        hold off;
     end
 end
 
@@ -116,6 +123,44 @@ sy = 5;
 ellipse = sqrt(((xx(sizeX,sizeY) - sx)*cos(alpha) + (yy(sizeX,sizeY) -sy)*sin(alpha))^2/a^2 + ((xx(sizeX,sizeY) - sx)*sin(alpha) - (yy(sizeX,sizeY) -sy)*cos(alpha))^2/b^2);
 
 res = double(ellipse);
+end
+
+function plotFitRidgesValleys(varargin)
+    global Gx;
+    global Gy;
+    global Hx;
+    global Hy;
+    global EVs1;
+    global EVs2;
+    global closestEV1;
+    global closestEV2;
+    
+    posV = nargin;
+    
+    for i = 1:nargin   
+        I = varargin{i}.data;
+        imgString = varargin{i}.name;
+        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getMathRidgesValleys(I, 12);
+        
+        figure(i)
+        imshow(I);
+        hold on;
+        title(sprintf('Ridges and pseudo-ridges of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [ridges pseudo_ridges], 'ro');
+        plotPoints(I, excluded, 'go');
+        hold off;
+        
+        posV = posV+1;
+        figure(posV)
+        imshow(I);
+        hold on;
+        title(sprintf('Valleys and pseudo-valleys of %s', strrep(imgString, '_', ' ')));
+        plotPoints(I, [valleys pseudo_valleys], 'bo');
+        plotPoints(I, excluded, 'go');
+        hold off;
+
+
+    end
 end
 
 
@@ -481,4 +526,217 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, excluded] = getRid
     if(valsCSE2 == 0)
         closestEV2 = [];
     end
+end
+
+
+function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = getMathRidgesValleys(img, area_sidesize)
+    valsRg = 0;
+    valsPsRg = 0;
+    valsValley = 0;
+    valsPsValley = 0;
+    valsExc = 0;
+
+
+    if mod(area_sidesize,2) == 0
+        area_sidesize = area_sidesize + 1;
+    end
+    
+    area_half = (area_sidesize-1)/2; 
+    
+    
+    calcImg = img;
+    f_col = calcImg(:, 1);
+    l_col = calcImg(:,end);
+    for i = 1:area_half
+        calcImg = [f_col calcImg l_col];
+    end
+    
+    f_line = calcImg(1, :);
+    l_line = calcImg(end,:);
+    
+    for i = 1:area_half
+        calcImg = [f_line; calcImg;l_line];
+    end
+    
+    
+    
+    local_area_data = zeros([area_sidesize, area_sidesize], 'like', img); 
+    local_area_mapping = [];
+       
+    [ySize, xSize] = size(calcImg);
+    
+    startPt = 1 + area_half;
+    
+    xValues = [];
+    for t = 1:area_sidesize
+       xValues = [xValues repmat(t, 1, area_sidesize)];
+    end
+    xValues = [xValues]';
+    
+    yValues = repmat([1:area_sidesize],1,area_sidesize);
+    yValues = [yValues]';
+    
+    nbValsArray = size(yValues);
+    nbVals = nbValsArray(1);
+    
+    localCenter = 1+area_half;
+    opts = optimoptions(@fsolve,'Display','off', 'Algorithm', 'levenberg-marquardt', 'TolFun', 1e-12, 'TolX', 1e-12);
+    
+    for x = startPt:(xSize-area_half)
+        for y = startPt:(ySize-area_half)
+            
+            for localX = 1:area_sidesize
+                imgX = x - area_half + localX - 1;
+                for localY = 1:area_sidesize
+                    imgY = y - area_half + localY - 1;
+                    local_area_data(localY,localX) = calcImg(imgY, imgX);
+                end
+            end
+            
+            
+            zValues = zeros(nbVals,1);
+            for tmp = 1:nbVals
+                zValues(tmp) = local_area_data(yValues(tmp), xValues(tmp));
+            end
+            
+            
+            
+            sf = fit([xValues, yValues],zValues,'poly23');
+            coeffs = coeffvalues(sf);
+            p00 = coeffs(1);
+            p10 = coeffs(2);
+            p01 = coeffs(3);
+            p20 = coeffs(4);
+            p11 = coeffs(5);
+            p02 = coeffs(6);
+            p21 = coeffs(7);
+            p12 = coeffs(8);
+            p03 = coeffs(9);
+            
+            syms f(a,b);
+            f(a,b) = p00 + p10*a + p01*b + p20*a^2 + p11*a*b + p02*b^2 + p21*a^2*b + p12*a*b^2 + p03*b^3;
+            
+            gx = diff(f, a);
+            gy = diff(f, b);
+            
+            gxx = diff(gx, a);
+            gxy = diff(gx, b);
+            
+            gyx = diff(gy, a);
+            gyy = diff(gy, b);
+            
+            Hgx = gxx*gx + gxy*gy;
+            Hgy = gyx*gx + gyy*gy;
+            
+            determinant = Hgx*gy - Hgy*gx;
+            eqn = @(p) double(determinant(p(1),p(2)));
+            
+            signNb = sign(double(determinant(localCenter-1, localCenter-1)));
+            changeSign = false;
+            for sX = 0:2
+                for sY = 0:2
+                    if(sign(double(determinant(localCenter-1+sY, localCenter-1+sX))) ~= signNb)
+                        changeSign = true;                        
+                    end
+                end
+            end
+            
+            if(changeSign)
+                S = fsolve(eqn, [localCenter-1,localCenter-1], opts);
+
+
+                Hessian = [gxx(S(1), S(2)), gxy(S(1), S(2)); gyx(S(1), S(2)), gyy(S(1), S(2))];
+                Hg = [Hgx(S(1), S(2)), Hgy(S(1), S(2))];
+                Grad = [gx(S(1), S(2)), gy(S(1), S(2))];
+
+                eigVals = eig(Hessian);
+
+                ev1 = min(eigVals);
+                ev2 = max(eigVals);
+
+                diffEV1 = abs(Hg(1)-Grad(1)*ev1) + abs(Hg(2)-Grad(2)*ev1);
+                diffEV2 = abs(Hg(1)-Grad(1)*ev2) + abs(Hg(2)-Grad(2)*ev2);
+
+                xVal = round(S(1));
+                yVal = round(S(2));
+                
+                xInCalcImg = x-area_half + xVal-1;
+                yInCalcImg = y-area_half + yVal-1;
+                
+                xInInputImg = xInCalcImg -area_half;
+                yInInputImg = yInCalcImg -area_half;
+                
+                if(xInInputImg >= 1 && xInInputImg <= xSize - 2*area_half && yInInputImg >= 1 && yInInputImg <= ySize - 2*area_half)
+                
+                    if(diffEV1 < diffEV2 && diffEV1 <10e-6)
+                        if ev2 > 0
+                            %valley
+                            valleyList(1,valsValley+1) = xInInputImg;
+                            valleyList(2,valsValley+1) = yInInputImg;
+                            valsValley = valsValley+1;
+                        elseif ev2 < 0
+                            %pseudo-ridge
+                            pseudoRgList(1,valsPsRg+1) = xInInputImg;
+                            pseudoRgList(2,valsPsRg+1) = yInInputImg;
+                            valsPsRg = valsPsRg+1;
+                        end
+                    elseif(diffEV2 < diffEV1 && diffEV2 <10e-6)
+                        if ev1 < 0
+                            %ridge
+                            rgList(1,valsRg+1) = xInInputImg;
+                            rgList(2,valsRg+1) = yInInputImg;
+                            valsRg = valsRg+1;
+                        elseif ev1 > 0
+                            %pseudo-valley
+                            pseudoValleyList(1,valsPsValley+1) = xInInputImg;
+                            pseudoValleyList(2,valsPsValley+1) = yInInputImg;
+                            valsPsValley = valsPsValley+1;
+                        end
+                    else                
+                    undetermined(1,valsExc+1) = xInInputImg;
+                    undetermined(2,valsExc+1) = yInInputImg;
+                    valsExc = valsExc+1;
+                    end
+                end
+            end
+%             [fx, fy, fxx, fxy, fyy] = differentiate( sf, localCenter, localCenter);
+%             g = [fx, fy];
+%             H = [fxx, fxy; fxy, fyy];
+%             eigVals = eig(H);
+%             
+%             ev1 = min(eigVals);
+%             ev2 = max(eigVals);
+%             
+%             t_g = g.';
+%             Hg = H * t_g;
+%             
+%             determinant = Hg(1)*g(2) - Hg(2)*g(1)
+%             diff_valEV1x = abs(Hg(1)-ev1*g(1));
+%             diff_valEV1y = abs(Hg(2)-ev1*g(2));
+%             
+%             diff_valEV2x = abs(Hg(1)-ev2*g(1));
+%             diff_valEV2y = abs(Hg(2)-ev2*g(2)); 
+        end
+    end
+    
+    if(valsRg == 0)
+        rgList = [];
+    end
+    
+    if(valsValley == 0)
+        valleyList = [];
+    end
+    
+    if(valsPsRg == 0)
+        pseudoRgList = [];
+    end
+    
+    if(valsPsValley == 0)
+        pseudoValleyList = [];
+    end
+    
+    if(valsExc == 0)
+        undetermined = [];
+    end
+    
 end
