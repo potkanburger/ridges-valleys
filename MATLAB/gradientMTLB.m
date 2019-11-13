@@ -25,9 +25,9 @@ circle = createImgStruct('circle', ITEMP, true);
 %plotHeighPoints(ellipses_generated, ellipse_rotated, circle);
 
 %last
-plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
+%plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
 %plotFitLinRidgesValleys(ellipse_rotated);
-
+plotFitRidgesValleys(ellipse_rotated);
 %functions
 
 function img = createImgStruct(name, data, isGray)
@@ -159,7 +159,7 @@ function plotFitRidgesValleys(varargin)
     for i = 1:nargin   
         I = varargin{i}.data;
         imgString = varargin{i}.name;
-        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getMathRidgesValleys(I, 12);
+        [ridges, pseudo_ridges, valleys, pseudo_valleys, excluded] = getParallelMathRidgesValleys(I, 12);
         
         figure(i)
         imshow(I);
@@ -758,6 +758,267 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = ge
 end
 
 
+function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = getParallelMathRidgesValleys(img, area_sidesize)
+    
+
+
+    if mod(area_sidesize,2) == 0
+        area_sidesize = area_sidesize + 1;
+    end
+    
+    area_half = (area_sidesize-1)/2; 
+    
+    
+    calcImg = img;
+    f_col = calcImg(:, 1);
+    l_col = calcImg(:,end);
+    for i = 1:area_half
+        calcImg = [f_col calcImg l_col];
+    end
+    
+    f_line = calcImg(1, :);
+    l_line = calcImg(end,:);
+    
+    for i = 1:area_half
+        calcImg = [f_line; calcImg;l_line];
+    end
+     
+       
+    [ySize, xSize] = size(calcImg);
+    
+    startPt = 1 + area_half;
+    
+    xValues = [];
+    for t = 1:area_sidesize
+       xValues = [xValues repmat(t, 1, area_sidesize)];
+    end
+    xValues = [xValues]';
+    
+    yValues = repmat([1:area_sidesize],1,area_sidesize);
+    yValues = [yValues]';
+    
+    nbValsArray = size(yValues);
+    nbVals = nbValsArray(1);
+    
+    localCenter = 1+area_half;
+    opts = optimoptions(@fsolve,'Display','off', 'Algorithm', 'levenberg-marquardt', 'TolFun', 1e-12, 'TolX', 1e-12);
+    
+    delete(gcp('nocreate'));
+    
+    parpool('local');
+    ppool = gcp('nocreate'); % If no pool, do not create new one.
+    if isempty(ppool)
+        poolsize = 0;
+    else
+        poolsize = ppool.NumWorkers;
+    end
+    
+    nbValX = xSize-2*area_half;
+    xPoolLength = floor(nbValX/poolsize);
+    last_xPoolLength = nbValX - (poolsize-1)*xPoolLength;
+    
+    maxHeighPointsPerPool = xPoolLength*(ySize-2*area_half);
+    
+    ridges = zeros(2, maxHeighPointsPerPool, poolsize);
+    valleys = zeros(2, maxHeighPointsPerPool, poolsize);
+    pseudoRidges = zeros(2, maxHeighPointsPerPool, poolsize);
+    pseudoValleys = zeros(2, maxHeighPointsPerPool, poolsize);
+    excluded = zeros(2, maxHeighPointsPerPool, poolsize);
+    
+    parfor i_pool=1:poolsize;
+        id = i_pool;
+        
+        startPtX = startPt + (i_pool-1)*xPoolLength;
+        endPtX = startPtX+xPoolLength-1;
+        if(i_pool == poolsize)
+            endPtX = startPtX+last_xPoolLength-1;
+        end
+        
+        sprintf("%d: startPtX = %d, endPtX = %d", id, startPtX, endPtX)
+        
+        local_area_data = zeros([area_sidesize, area_sidesize], 'like', img);
+        
+        valsRg(:,i_pool) = 0;
+        valsPsRg(:,i_pool) = 0;
+        valsValley(:,i_pool) = 0;
+        valsPsValley(:,i_pool) = 0;
+        valsExc(:,i_pool) = 0;
+        
+        tmpValleys = zeros(2, maxHeighPointsPerPool);
+        tmpRidges = zeros(2, maxHeighPointsPerPool);
+        tmpPseudoValleys = zeros(2, maxHeighPointsPerPool);
+        tmpPseudoRidges = zeros(2, maxHeighPointsPerPool);
+        tmpUnknown = zeros(2, maxHeighPointsPerPool);
+        a = sym('a');
+        b = sym('b');
+        f = sym('f', [1 poolsize]);
+        for x = startPtX:endPtX
+            for y = startPt:(ySize-area_half)
+
+                for localX = 1:area_sidesize
+                    imgX = x - area_half + localX - 1;
+                    for localY = 1:area_sidesize
+                        imgY = y - area_half + localY - 1;
+                        local_area_data(localY,localX) = calcImg(imgY, imgX);
+                    end
+                end
+
+
+                zValues = zeros(nbVals,1);
+                for tmp = 1:nbVals
+                    zValues(tmp) = local_area_data(yValues(tmp), xValues(tmp));
+                end
+
+
+                sf = fit([xValues, yValues],zValues,'poly23');
+                coeffs = coeffvalues(sf);
+                p00 = coeffs(1);
+                p10 = coeffs(2);
+                p01 = coeffs(3);
+                p20 = coeffs(4);
+                p11 = coeffs(5);
+                p02 = coeffs(6);
+                p21 = coeffs(7);
+                p12 = coeffs(8);
+                p03 = coeffs(9);
+                
+                
+                cur_f = f(i_pool);
+                cur_f(a,b) = p00 + p10*a + p01*b + p20*a^2 + p11*a*b + p02*b^2 + p21*a^2*b + p12*a*b^2 + p03*b^3;
+                gx = diff(cur_f, a);
+                gy = diff(cur_f, b);
+
+                gxx = diff(gx, a);
+                gxy = diff(gx, b);
+
+                gyx = diff(gy, a);
+                gyy = diff(gy, b);
+
+                Hgx = gxx*gx + gxy*gy;
+                Hgy = gyx*gx + gyy*gy;
+
+                determinant = Hgx*gy - Hgy*gx;
+                eqn = @(p) double(determinant(p(1),p(2)));
+
+                signNb = sign(double(determinant(localCenter-1, localCenter-1)));
+                changeSign = false;
+                for sX = 0:2
+                    for sY = 0:2
+                        if(sign(double(determinant(localCenter-1+sY, localCenter-1+sX))) ~= signNb)
+                            changeSign = true;                        
+                        end
+                    end
+                end
+
+                if(changeSign)
+                    S = fsolve(eqn, [localCenter-1,localCenter-1], opts);
+
+
+                    Hessian = [gxx(S(1), S(2)), gxy(S(1), S(2)); gyx(S(1), S(2)), gyy(S(1), S(2))];
+                    Hg = [Hgx(S(1), S(2)), Hgy(S(1), S(2))];
+                    Grad = [gx(S(1), S(2)), gy(S(1), S(2))];
+
+                    eigVals = eig(Hessian);
+
+                    ev1 = min(eigVals);
+                    ev2 = max(eigVals);
+
+                    diffEV1 = abs(Hg(1)-Grad(1)*ev1) + abs(Hg(2)-Grad(2)*ev1);
+                    diffEV2 = abs(Hg(1)-Grad(1)*ev2) + abs(Hg(2)-Grad(2)*ev2);
+
+                    xVal = round(S(1));
+                    yVal = round(S(2));
+
+                    xInCalcImg = x-area_half + xVal-1;
+                    yInCalcImg = y-area_half + yVal-1;
+
+                    xInInputImg = xInCalcImg -area_half;
+                    yInInputImg = yInCalcImg -area_half;
+
+                    if(xInInputImg >= 1 && xInInputImg <= xSize - 2*area_half && yInInputImg >= 1 && yInInputImg <= ySize - 2*area_half)
+                        if(diffEV1 < diffEV2 && diffEV1 <10e-6)
+                            if ev2 > 0
+                                %valley
+                                nbValleys = valsValley(:,i_pool);
+                                tmpValleys(:, nbValleys+1) = [yInInputImg, xInInputImg]; 
+                                valsValley(:,i_pool) = nbValleys+1;
+                            elseif ev2 < 0
+                                %pseudo-ridge
+                                nbPsRidges = valsPsRg(:,i_pool);
+                                tmpPseudoRidges(:, nbPsRidges+1) = [yInInputImg, xInInputImg]; 
+                                valsPsRg(:,i_pool) = nbPsRidges+1;
+                            end
+                        elseif(diffEV2 < diffEV1 && diffEV2 <10e-6)
+                            if ev1 < 0
+                                %ridge
+                                nbRidges = valsRg(:,i_pool);
+                                tmpRidges(:, nbRidges+1) = [yInInputImg, xInInputImg]; 
+                                valsRg(:,i_pool) = nbRidges+1;
+                            elseif ev1 > 0
+                                %pseudo-valley
+                                nbPsValleys = valsPsValley(:,i_pool);
+                                tmpPseudoValleys(:, nbPsValleys+1) = [yInInputImg, xInInputImg]; 
+                                valsPsValley(:,i_pool) = nbPsValleys+1;
+                            end
+                        else         
+                            
+                        nbUnk = valsExc(:,i_pool);
+                        tmpUnknown(:, nbUnk+1) = [yInInputImg, xInInputImg]; 
+                        valsExc(:,i_pool) = nbUnk+1;
+                        end
+                    end
+                end
+                
+            end
+        end 
+        
+        ridges(:,:,i_pool) = tmpRidges;
+        valleys(:,:,i_pool) = tmpValleys;
+        pseudoRidges(:,:,i_pool) = tmpPseudoRidges;
+        pseudoValleys(:,:,i_pool) = tmpPseudoValleys;
+        excluded(:,:,i_pool) = tmpUnknown;
+        
+        
+%         dridges{i_pool}= tmpRidges(:, 1:valsRg(:,i_pool));
+%         dvalleys{i_pool}= tmpValleys(:, 1:valsValley(:,i_pool));
+%         dpseudo_ridges{i_pool}= tmpPseudoRidges(:, 1:valsPsRg(:,i_pool));
+%         dpseudo_valleys{i_pool}= tmpPseudoValleys(:, 1:valsPsValley(:,i_pool));  
+%         dunkwnown{i_pool}= tmpUnknown(:, 1:valsExc(:,i_pool));
+        
+    end
+    allRidges = zeros(2,0);
+    allValleys = zeros(2,0);
+    allPsRidges = zeros(2,0);
+    allPsValleys = zeros(2,0);
+    allUnk = zeros(2,0);
+    for ip=1:poolsize        
+        allRidges = [allRidges ridges(:, 1:valsRg(:,ip),ip)];
+        allValleys = [allValleys valleys(:, 1:valsValley(:,ip),ip)];
+        allPsRidges = [allPsRidges pseudoRidges(:, 1:valsPsRg(:,ip),ip)];
+        allPsValleys = [allPsValleys pseudoValleys(:, 1:valsPsValley(:,ip),ip)];
+        allUnk = [allUnk excluded(:, 1:valsExc(:,ip),ip)];
+    end
+    
+    rgList(1,:) = allRidges(2,:); %x list of ridges
+    rgList(2,:) = allRidges(1,:); %y list of ridges
+    
+    valleyList(1,:) = allValleys(2,:); %x list of valleys
+    valleyList(2,:) = allValleys(1,:); %y list of valleys
+    
+    pseudoRgList(1,:) = allPsRidges(2,:); %x list of pseudo_ridges
+    pseudoRgList(2,:) = allPsRidges(1,:); %y list of pseudo_ridges
+    
+    pseudoValleyList(1,:) = allPsValleys(2,:); %x list of pseudo_valleys
+    pseudoValleyList(2,:) = allPsValleys(1,:); %y list of pseudo_valleys
+    
+    undetermined(1,:) = allUnk(2,:); %x list of unkwnown
+    undetermined(2,:) = allUnk(1,:); %y list of unkwnown    
+    
+    delete(ppool);
+end
+
+
+
 function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = getMathLinRidgesValleys(img, area_sidesize)
     valsRg = 0;
     valsPsRg = 0;
@@ -796,7 +1057,6 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = ge
     localCenter = 1+area_half;
     nbVals = area_sidesize;
     startPt = 1 + area_half;
-    
     
     for x = startPt:(xSize-area_half)
         for y = startPt:(ySize-area_half)
