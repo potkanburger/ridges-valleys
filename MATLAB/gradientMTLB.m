@@ -27,7 +27,7 @@ circle = createImgStruct('circle', ITEMP, true);
 %last
 %plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
 %plotFitLinRidgesValleys(ellipse_rotated);
-plotFitRidgesValleys(ellipse_rotated);
+plotFitRidgesValleys(ellipses_generated);
 %functions
 
 function img = createImgStruct(name, data, isGray)
