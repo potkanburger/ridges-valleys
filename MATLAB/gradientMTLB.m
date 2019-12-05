@@ -27,7 +27,7 @@ circle = createImgStruct('circle', ITEMP, true);
 %last
 %plotRidgesValleys(ellipses_generated, ellipse_rotated, circle);
 %plotFitLinRidgesValleys(ellipse_rotated);
-plotFitRidgesValleys(ellipses_generated);
+plotFitRidgesValleys(ellipse_rotated);
 %functions
 
 function img = createImgStruct(name, data, isGray)
@@ -870,21 +870,17 @@ function [rgList, pseudoRgList, valleyList, pseudoValleyList, undetermined] = ge
                 end
 
 
-                sf = fit([xValues, yValues],zValues,'poly23');
+                sf = fit([xValues, yValues],zValues,'poly22');
                 coeffs = coeffvalues(sf);
                 p00 = coeffs(1);
                 p10 = coeffs(2);
                 p01 = coeffs(3);
                 p20 = coeffs(4);
                 p11 = coeffs(5);
-                p02 = coeffs(6);
-                p21 = coeffs(7);
-                p12 = coeffs(8);
-                p03 = coeffs(9);
-                
+                p02 = coeffs(6);                
                 
                 cur_f = f(i_pool);
-                cur_f(a,b) = p00 + p10*a + p01*b + p20*a^2 + p11*a*b + p02*b^2 + p21*a^2*b + p12*a*b^2 + p03*b^3;
+                cur_f(a,b) = p00 + p10*a + p01*b + p20*a^2 + p11*a*b + p02*b^2;
                 gx = diff(cur_f, a);
                 gy = diff(cur_f, b);
 
